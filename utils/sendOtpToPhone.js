@@ -1,0 +1,16 @@
+const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+// const generateOtp = require('../utils/generateOtp');
+
+const sendOtpToPhone = async (phone, otp) => {
+    // const whatsOtp = generateOtp()
+
+        // Send OTP via Twilio WhatsApp
+        await twilio.messages.create({
+            from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+            to: `whatsapp:${phone}`,
+            body: `Your takatak login code is: ${otp}`
+        });
+        return otp; // Return it so it will be store in DB
+}
+
+module.exports = sendOtpToPhone;
