@@ -125,36 +125,50 @@ const verifyOtp = async (req, res) => {
 };
 
 const requestNewCode = async (req, res) => {
-    const { phone } = req.body;
-
-    if (!phone) {
-        return res.status(400).json({ msg: 'Please enter your registered number' });
-    }
+    const { phone, email } = req.body;
 
     try {
-        const userNum = await Users.findOne({ phone });
+        let userDetail;
+        let otpTarget;
+        let otp = generateOtp();
 
-        if (!userNum) {
-            return res.status(400).json({ msg: 'User not found' });
+        // Determine whether the user is using email or phone
+        if (email) {
+            userDetail = await Users.findOne({ email });
+            if (!userDetail) {
+                return res.status(401).json({ error: 'Invalid email address' });
+            }
+            otpTarget = 'email';
+        } else if (phone) {
+            userDetail = await Users.findOne({ phone });
+            if (!userDetail) {
+                return res.status(401).json({ error: 'Invalid phone number' });
+            }
+            otpTarget = 'phone';
+        } else {
+            return res.status(400).json({ message: 'Email or phone number is required' });
         }
 
-        // Send OTP via WhatsApp
-        const otp = generateOtp();
-        await sendOtpToPhone(phone, otp);
+        // Send the OTP based on target type
+        if (otpTarget === 'email') {
+            await sendOtpToEmail(userDetail.email, otp);
+        } else if (otpTarget === 'phone') {
+            await sendOtpToPhone(userDetail.phone, otp);
+        }
 
-        userNum.userotp = await bcrypt.hash(otp, 10); // Hash for security
-        userNum.regTokenExpires = Date.now() + 5 * 60 * 1000; //  5 mins 
+        // Hash OTP and update user record
+        userDetail.userotp = await bcrypt.hash(otp, 10);
+        userDetail.regTokenExpires = Date.now() + 5 * 60 * 1000; // expires in 5 minutes
+        await userDetail.save();
 
-        await userNum.save();
-
-        //  Send success response
-        return res.status(200).json({ msg: 'OTP has been resent to your WhatsApp' });
+        return res.status(200).json({ msg: `OTP has been resent to your ${otpTarget}` });
 
     } catch (error) {
         console.error("Error resending code:", error);
         return res.status(500).json({ msg: 'Something went wrong. Try again later.' });
     }
 };
+
 
 const login = async (req, res) => {
     const { phone, email } = req.body;
