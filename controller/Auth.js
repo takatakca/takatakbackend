@@ -78,10 +78,10 @@ const register = async(req, res)=>{
 
 
 const verifyOtp = async (req, res) => {
-    const { phone, otp } = req.body;
+    const { phone, email, otp } = req.body;
 
     try {
-        const user = await Users.findOne({ phone });
+        const user = await Users.findOne(email ? { email }:{ phone });
 
         if (!user || !user.userotp) {
             return res.status(400).json({ msg: "User or OTP not found" });
@@ -96,7 +96,7 @@ const verifyOtp = async (req, res) => {
         const isMatch = await bcrypt.compare(otp, user.userotp);
 
         if (!isMatch) {
-            return res.status(400).json({ msg: 'Invalid OTP' });
+            return res.status(400).json({ msg: 'Invalid OTP recheck!' });
         }
 
         // Mark user as verified 
