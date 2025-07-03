@@ -180,13 +180,13 @@ const login = async (req, res) => {
         if (email) {
             userLog = await Users.findOne({ email });
             if (!userLog) {
-                return res.status(401).json({ error: 'Invalid email address' });
+                return res.status(401).json({ error: ' email address not exist ' });
             }
             otpTarget = 'email';
         } else if (phone) {
             userLog = await Users.findOne({ phone });
             if (!userLog) {
-                return res.status(401).json({ error: 'Invalid phone number' });
+                return res.status(401).json({ error: ' phone number not exist ' });
             }
             otpTarget = 'phone';
         } else {
