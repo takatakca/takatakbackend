@@ -14,6 +14,12 @@ const register = async(req, res)=>{
             return res.status(400).json({message:'Please fill in all fields it required'});
         }
 
+        // Normalize phone number with + accept by twilio to send code to whatsapp/number
+        const cleanedPhone = phone.trim().replace(/\s+/g, '');
+        const storedPhone = cleanedPhone.startsWith('+') ? cleanedPhone.slice(1) : cleanedPhone; // e.g., 234915...
+        const whatsappPhone = `+${storedPhone}`; // e.g., +234915...
+
+
         const existUserNAme = await Users.findOne({ username });
 
         // Check if user already exists by email or phone
@@ -34,7 +40,7 @@ const register = async(req, res)=>{
 
         // Send OTP via  whatsapp this function is imported
         const otp = generateOtp();
-        await sendOtpToPhone(phone, otp);
+        await sendOtpToPhone(whatsappPhone, otp);
         const hashedOtp = await bcrypt.hash(otp, 10);
 
         // Create new user instance
@@ -43,16 +49,16 @@ const register = async(req, res)=>{
             lastName,
             email,
             username,
-            phone,
+            phone:storedPhone,
             userotp:hashedOtp,
-            regTokenExpires: Date.now() + 5 * 60 * 1000
+            regTokenExpires: Date.now() + 5 * 60 * 1000 // 5min
         });
 
     
         // return res.status(200).json({ message: "OTP sent successfully" });
 
         RegUser.userotp = hashedOtp;
-        RegUser.regTokenExpires = Date.now() + 5 * 60 * 1000;// 5min
+        // RegUser.regTokenExpires = Date.now() + 5 * 60 * 1000;
 
           // Save user to DB
         await RegUser.save();
@@ -153,7 +159,8 @@ const requestNewCode = async (req, res) => {
         if (otpTarget === 'email') {
             await sendOtpToEmail(userDetail.email, otp);
         } else if (otpTarget === 'phone') {
-            await sendOtpToPhone(userDetail.phone, otp);
+            const formattedPhone = userDetail.phone.startsWith('+') ? userDetail.phone : `+${userDetail.phone}`;
+            await sendOtpToPhone(formattedPhone, otp);
         }
 
         // Hash OTP and update user record
@@ -196,10 +203,6 @@ const login = async (req, res) => {
         const otp = generateOtp();
         const hashedOtp = await bcrypt.hash(otp, 10);
 
-        console.log("Generated OTP:", otp);
-console.log("Hashed OTP:", hashedOtp);
-
-
         userLog.userotp = hashedOtp;
         userLog.regTokenExpires = Date.now() + 5 * 60 * 1000;
         await userLog.save();
@@ -208,7 +211,8 @@ console.log("Hashed OTP:", hashedOtp);
             await sendOtpToEmail(userLog.email, otp);
             return res.status(200).json({ message: 'OTP sent to email' });
         } else {
-            await sendOtpToPhone(userLog.phone, otp);
+            // await sendOtpToPhone(userLog.phone, otp);
+            await sendOtpToPhone(`+${userLog.phone}`, otp);
             return res.status(200).json({ message: 'OTP sent to phone' });
         }
 
