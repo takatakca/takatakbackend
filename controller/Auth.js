@@ -4,46 +4,51 @@ const jwt = require('jsonwebtoken');
 const sendOtpToPhone = require('../utils/sendOtpToPhone');
 const sendOtpToEmail = require('../utils/sendOtpToEmail');
 const generateOtp = require('../utils/generateOtp');
+const { normalizePhone, formatForWhatsApp } = require('../utils/phoneUtils');
 
 
 const register = async(req, res)=>{
     const { firstName, lastName, email, username, phone } = req.body;
     try {
-        //check if require field is provided
+        // Validate required fields
         if(!firstName || !lastName || !email || !phone || !username){
-            return res.status(400).json({message:'Please fill in all fields it required'});
+            return res.status(400).json({message:'Please fill in all required fields.'});
         }
 
         // Normalize phone number with + accept by twilio to send code to whatsapp/number
-        const cleanedPhone = phone.trim().replace(/\s+/g, '');
-        const storedPhone = cleanedPhone.startsWith('+') ? cleanedPhone.slice(1) : cleanedPhone; // e.g., 234915...
-        const whatsappPhone = `+${storedPhone}`; // e.g., +234915...
+        const storedPhone = normalizePhone(phone); // for DB
+        const whatsappPhone = formatForWhatsApp(storedPhone); // for WhatsApp
 
 
-        const existUserNAme = await Users.findOne({ username });
 
-        // Check if user already exists by email or phone
-        const existingUser = await Users.findOne({
-            $or: [{ email }, { phone }]
-        });
+        // Check if username or email/phone already exists
+        const [existingUser, existingUsername] = await Promise.all([
+            Users.findOne({ $or: [{ email }, { phone: storedPhone }] }),
+            Users.findOne({ username })
+        ]);
         
         // Show conflict error if user exists
         if (existingUser) {
-            return res.status(409).json({ error: 'User already exists please login' });
+            return res.status(409).json({ error: 'User already exists. Please log in.' });
         }
 
-        if (existUserNAme) {
+        if (existingUsername) {
             return res.status(409).json({ error: 'Username is taken' });
         }
         
 
-
-        // Send OTP via  whatsapp this function is imported
         const otp = generateOtp();
-        await sendOtpToPhone(whatsappPhone, otp);
+
+        try {
+            await sendOtpToPhone(whatsappPhone, otp);           
+        } catch (twilioError) {
+            console.error('Twilio Error:', twilioError.message || twilioError);
+            return res.status(500).json({ error: 'Failed to send OTP. Check phone number or try again later.' });
+        }
+
         const hashedOtp = await bcrypt.hash(otp, 10);
 
-        // Create new user instance
+         // Save user with OTP
         const RegUser = new Users({
             firstName,
             lastName,
@@ -54,30 +59,17 @@ const register = async(req, res)=>{
             regTokenExpires: Date.now() + 5 * 60 * 1000 // 5min
         });
 
-    
-        // return res.status(200).json({ message: "OTP sent successfully" });
-
-        RegUser.userotp = hashedOtp;
-        // RegUser.regTokenExpires = Date.now() + 5 * 60 * 1000;
-
-          // Save user to DB
+        
         await RegUser.save();
-
-
-        // Generate a JWT token
-        const token = jwt.sign({ userId: RegUser._id }, process.env.SECRET_TOKEN, { expiresIn: '1h' });
-
+        
         res.status(201).json({
-            message: "New register user created",
+            message: "New user registered. OTP sent.",
             userId: RegUser._id,
-            token: token,
             
         });
     } catch (error) {
-        console.log(error);
-        console.error(error.response?.data || error);
-
-        res.status(500).json({ error: 'Something went wrong, please try again later' });
+        console.error('Registration Error:', error.response?.data || error);
+        return res.status(500).json({ error: 'Something went wrong. Please try again later.' });
     }
 }
 
@@ -87,22 +79,22 @@ const verifyOtp = async (req, res) => {
     const { phone, email, otp } = req.body;
 
     try {
-        const user = await Users.findOne(email ? { email }:{ phone });
+        const user = await Users.findOne(email ? { email }:{ phone: normalizePhone(phone) });
 
         if (!user || !user.userotp) {
-            return res.status(400).json({ msg: "User or OTP not found" });
+            return res.status(400).json({ message: "User or OTP not found" });
         }
 
         // Check if OTP is expired
         if (user.regTokenExpires < Date.now()) {
-            return res.status(400).json({ msg: 'OTP has expired' });
+            return res.status(400).json({ message: 'OTP has expired' });
         }
 
         // Check if OTP matches
         const isMatch = await bcrypt.compare(otp, user.userotp);
 
         if (!isMatch) {
-            return res.status(400).json({ msg: 'Invalid OTP recheck!' });
+            return res.status(400).json({ message: 'Invalid OTP recheck!' });
         }
 
         // Mark user as verified 
@@ -118,7 +110,7 @@ const verifyOtp = async (req, res) => {
           );
           
           return res.status(200).json({
-            msg: 'User verified successfully',
+            message: 'User verified successfully',
             token,
             userId: user._id
           });
@@ -126,7 +118,7 @@ const verifyOtp = async (req, res) => {
 
     } catch (error) {
         console.error("OTP verification error:", error);
-        return res.status(500).json({ msg: 'Something went wrong' });
+        return res.status(500).json({ message: 'Something went wrong' });
     }
 };
 
@@ -146,7 +138,9 @@ const requestNewCode = async (req, res) => {
             }
             otpTarget = 'email';
         } else if (phone) {
-            userDetail = await Users.findOne({ phone });
+            const storedPhone = normalizePhone(phone);
+            userDetail = await Users.findOne({ phone: storedPhone });
+
             if (!userDetail) {
                 return res.status(401).json({ error: 'Invalid phone number' });
             }
@@ -159,8 +153,7 @@ const requestNewCode = async (req, res) => {
         if (otpTarget === 'email') {
             await sendOtpToEmail(userDetail.email, otp);
         } else if (otpTarget === 'phone') {
-            const formattedPhone = userDetail.phone.startsWith('+') ? userDetail.phone : `+${userDetail.phone}`;
-            await sendOtpToPhone(formattedPhone, otp);
+            await sendOtpToPhone(formatForWhatsApp(userDetail.phone), otp);
         }
 
         // Hash OTP and update user record
@@ -168,11 +161,11 @@ const requestNewCode = async (req, res) => {
         userDetail.regTokenExpires = Date.now() + 5 * 60 * 1000; // expires in 5 minutes
         await userDetail.save();
 
-        return res.status(200).json({ msg: `OTP has been resent to your ${otpTarget}` });
+        return res.status(200).json({ message: `OTP has been resent to your ${otpTarget}` });
 
     } catch (error) {
         console.error("Error resending code:", error);
-        return res.status(500).json({ msg: 'Something went wrong. Try again later.' });
+        return res.status(500).json({ message: 'Something went wrong. Try again later.' });
     }
 };
 
@@ -187,13 +180,15 @@ const login = async (req, res) => {
         if (email) {
             userLog = await Users.findOne({ email });
             if (!userLog) {
-                return res.status(401).json({ error: ' email address not exist ' });
+                return res.status(401).json({ error: 'email address not exist' });
             }
             otpTarget = 'email';
         } else if (phone) {
-            userLog = await Users.findOne({ phone });
+            const storedPhone = normalizePhone(phone);
+            userLog = await Users.findOne({ phone: storedPhone });
+
             if (!userLog) {
-                return res.status(401).json({ error: ' phone number not exist ' });
+                return res.status(401).json({ error: 'phone number not exist' });
             }
             otpTarget = 'phone';
         } else {
@@ -212,7 +207,9 @@ const login = async (req, res) => {
             return res.status(200).json({ message: 'OTP sent to email' });
         } else {
             // await sendOtpToPhone(userLog.phone, otp);
-            await sendOtpToPhone(`+${userLog.phone}`, otp);
+            // await sendOtpToPhone(`+${userLog.phone}`, otp);
+            await sendOtpToPhone(formatForWhatsApp(userLog.phone), otp);
+
             return res.status(200).json({ message: 'OTP sent to phone' });
         }
 
