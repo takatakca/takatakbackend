@@ -196,6 +196,10 @@ const login = async (req, res) => {
         const otp = generateOtp();
         const hashedOtp = await bcrypt.hash(otp, 10);
 
+        console.log("Generated OTP:", otp);
+console.log("Hashed OTP:", hashedOtp);
+
+
         userLog.userotp = hashedOtp;
         userLog.regTokenExpires = Date.now() + 5 * 60 * 1000;
         await userLog.save();
