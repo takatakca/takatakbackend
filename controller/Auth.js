@@ -91,23 +91,24 @@ const verifyOtp = async (req, res) => {
         }
 
         // Check if OTP matches
-        const isMatch = await bcrypt.compare(otp, user.userotp);
-
+        const isMatch = await bcrypt.compare(otp, user.userotp);     
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid OTP recheck!' });
         }
 
         // Mark user as verified 
         user.isVerified = true;
+        user.verifiedAt = new Date();
         user.userotp = undefined;
         user.regTokenExpires = undefined;
         await user.save();
 
         const token = jwt.sign(
-            { userId: user._id },
+            { userId: user._id, email: user.email, phone: user.phone},
             process.env.SECRET_TOKEN,
             { expiresIn: '1h' }
           );
+
           
           return res.status(200).json({
             message: 'User verified successfully',
@@ -128,7 +129,6 @@ const requestNewCode = async (req, res) => {
     try {
         let userDetail;
         let otpTarget;
-        let otp = generateOtp();
 
         // Determine whether the user is using email or phone
         if (email) {
@@ -149,6 +149,12 @@ const requestNewCode = async (req, res) => {
             return res.status(400).json({ message: 'Email or phone number is required' });
         }
 
+        if (userDetail.regTokenExpires > Date.now() - 30000) { // cooldown for 30 sec
+            return res.status(429).json({ message: 'Please wait before requesting another code.' });
+        }
+
+        let otp = generateOtp();
+
         // Send the OTP based on target type
         if (otpTarget === 'email') {
             await sendOtpToEmail(userDetail.email, otp);
@@ -156,9 +162,11 @@ const requestNewCode = async (req, res) => {
             await sendOtpToPhone(formatForWhatsApp(userDetail.phone), otp);
         }
 
+
         // Hash OTP and update user record
         userDetail.userotp = await bcrypt.hash(otp, 10);
         userDetail.regTokenExpires = Date.now() + 5 * 60 * 1000; // expires in 5 minutes
+        
         await userDetail.save();
 
         return res.status(200).json({ message: `OTP has been resent to your ${otpTarget}` });
@@ -176,11 +184,11 @@ const login = async (req, res) => {
     try {
         let userLog;
         let otpTarget;
-
+        
         if (email) {
-            userLog = await Users.findOne({ email });
+            userLog = await Users.findOne({ email });        
             if (!userLog) {
-                return res.status(401).json({ error: 'email address not exist' });
+                return res.status(401).json({ error: 'Email address not found' });
             }
             otpTarget = 'email';
         } else if (phone) {
@@ -188,7 +196,7 @@ const login = async (req, res) => {
             userLog = await Users.findOne({ phone: storedPhone });
 
             if (!userLog) {
-                return res.status(401).json({ error: 'phone number not exist' });
+                return res.status(401).json({ error: 'Phone number not found' });
             }
             otpTarget = 'phone';
         } else {
@@ -196,22 +204,21 @@ const login = async (req, res) => {
         }
 
         const otp = generateOtp();
-        const hashedOtp = await bcrypt.hash(otp, 10);
 
+        if (otpTarget === 'email') {
+            await sendOtpToEmail(userLog.email, otp);
+            // return res.status(200).json({ message: 'OTP sent to email' });
+        } else {
+            await sendOtpToPhone(formatForWhatsApp(userLog.phone), otp);
+        }
+        
+        const hashedOtp = await bcrypt.hash(otp, 10);
         userLog.userotp = hashedOtp;
         userLog.regTokenExpires = Date.now() + 5 * 60 * 1000;
         await userLog.save();
 
-        if (otpTarget === 'email') {
-            await sendOtpToEmail(userLog.email, otp);
-            return res.status(200).json({ message: 'OTP sent to email' });
-        } else {
-            // await sendOtpToPhone(userLog.phone, otp);
-            // await sendOtpToPhone(`+${userLog.phone}`, otp);
-            await sendOtpToPhone(formatForWhatsApp(userLog.phone), otp);
-
-            return res.status(200).json({ message: 'OTP sent to phone' });
-        }
+        return res.status(200).json({ message: `OTP sent to your ${otpTarget}` });
+        
 
     } catch (error) {
         console.error("Login Error:", error);

@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const generateOtp = require('../utils/generateOtp');
 
 
         // Send OTP via email
@@ -15,16 +14,13 @@ const generateOtp = require('../utils/generateOtp');
             },
         });
 
-    const sendOtpToEmail = async (email) => {
-        const mailOtp = generateOtp()
-
+    const sendOtpToEmail = async (email, otp) => {
         await mailTransporter.sendMail({
             from: `"Takatak Team" <${process.env.EMAIL_USER}> `,
             to: email,
             subject: 'OTP from Takatak platform',
-            text: `Your OTP is: ${mailOtp}. It will expire in 10 minutes.`
+            text: `Your OTP is: ${otp}. It will expire in 10 minutes.`
         });
-        return mailOtp
     };
 
     module.exports = sendOtpToEmail

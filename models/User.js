@@ -30,6 +30,9 @@ isVerified: {
     default: false,
     required: true,
 },
+verifiedAt: {
+    type: Date
+},
 
 userotp: {
     type: String
