@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(cors(
     {
-        cors: "*"
+        origin: "*"
     }
 ));
 
