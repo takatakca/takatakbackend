@@ -149,8 +149,10 @@ const requestNewCode = async (req, res) => {
             return res.status(400).json({ message: 'Email or phone number is required' });
         }
 
-        if (userDetail.regTokenExpires > Date.now() - 30000) { // cooldown for 30 sec
-            return res.status(429).json({ message: 'Please wait before requesting another code.' });
+        // NEW COOLDOWN LOGIC (30 sec)
+        const cooldownDuration = 30 * 1000;
+        if (userDetail.lastOtpRequestedAt && Date.now() - userDetail.lastOtpRequestedAt < cooldownDuration) {
+        return res.status(429).json({ message: 'Please wait before requesting another code.' });
         }
 
         let otp = generateOtp();
@@ -166,6 +168,7 @@ const requestNewCode = async (req, res) => {
         // Hash OTP and update user record
         userDetail.userotp = await bcrypt.hash(otp, 10);
         userDetail.regTokenExpires = Date.now() + 5 * 60 * 1000; // expires in 5 minutes
+        userDetail.lastOtpRequestedAt = Date.now(); // UPDATE THIS
         
         await userDetail.save();
 

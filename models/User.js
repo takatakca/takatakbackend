@@ -38,6 +38,11 @@ userotp: {
     type: String
 },
 
+lastOtpRequestedAt: {
+  type: Date,
+  default: null
+},
+
 username: {
     type: String,
 },
