@@ -4,24 +4,20 @@ require('dotenv').config();
 
 const isLoggedIn = async(req, res, next)=>{
     try {
-        let token;
-        if(
-            req.headers.authorization &&
-            req.headers.authorization.startsWith("Bearer")
-        ){
-            token = req.headers.authorization.split(" ")[1];
+        const authHeader = req.headers.authorization;
 
-            if(!token){
-                return res.status(403).json({ error: 'Token is missing from headers' });
-            }
-
-            const decoded = jwt.verify(token, process.env.SECRET_TOKEN);
-            req.user = await Users.findById(decoded.userId);
-
-            if (!req.user) {
-                return res.status(401).json({ error: 'User not found' });
-            }
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({ error: 'Authorization header missing or malformed' });
         }
+
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.SECRET_TOKEN);
+        req.user = await Users.findById(decoded.userId);
+
+        if (!req.user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+        
         next();
     } catch (error) {
         console.log(error.message);
