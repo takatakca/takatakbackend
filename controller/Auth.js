@@ -39,6 +39,7 @@ const register = async(req, res)=>{
 
         const otp = generateOtp();
 
+        
         try {
             await sendOtpToPhone(whatsappPhone, otp);           
         } catch (twilioError) {
