@@ -1,10 +1,14 @@
 const Users = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require("fs");
+const jwkToPem = require("jwk-to-pem");
+const { importSPKI, exportJWK } = require("jose");
 const sendOtpToPhone = require('../utils/sendOtpToPhone');
 const sendOtpToEmail = require('../utils/sendOtpToEmail');
 const generateOtp = require('../utils/generateOtp');
 const { normalizePhone, formatForWhatsApp } = require('../utils/phoneUtils');
+const { createSessionAndSetCookies } = require("./authSession")
 
 
 const register = async(req, res)=>{
@@ -103,18 +107,34 @@ const verifyOtp = async (req, res) => {
         user.regTokenExpires = undefined;
         await user.save();
 
-        const token = jwt.sign(
-            { userId: user._id, email: user.email, phone: user.phone},
-            process.env.SECRET_TOKEN,
-            { expiresIn: '1h' }
-          );
+        // 🔑 Create session & set cookies, issue access token
+        const { accessToken, sid } = await createSessionAndSetCookies(user, req, res);
+
+        // ✅ Respond once
+        return res.status(200).json({
+        message: "User verified successfully",
+        token: accessToken, // Access token from RS256
+        sid,
+        userId: user._id,
+        phone: user.phone,
+        email: user.email,
+        });
+
+
+        // const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, "utf8")
+        // const token = jwt.sign(
+        //     { userId: user._id, email: user.email, phone: user.phone},
+        //     // process.env.SECRET_TOKEN,
+        //     privateKey,
+        //     { algorithm: "RS256", expiresIn: '1h' }
+        //   );
 
           
-          return res.status(200).json({
-            message: 'User verified successfully',
-            token,
-            userId: user._id
-          });
+        //   return res.status(200).json({
+        //     message: 'User verified successfully',
+        //     token,
+        //     userId: user._id
+        //   });
           
 
     } catch (error) {
@@ -122,6 +142,24 @@ const verifyOtp = async (req, res) => {
         return res.status(500).json({ message: 'Something went wrong' });
     }
 };
+
+
+const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
+// onvert to JWK and serve as JWKS
+const getJwks = async(req, res) => {
+    try {
+        const keyObj = await importSPKI(publicKey, "RS256");
+        const jwk = await exportJWK(keyObj);
+
+        jwk.use = "sig";
+        jwk.kid = "takatak-key"; // Key ID
+        jwk.alg = "RS256";
+
+        res.json({ keys: [jwk] });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to generate JWKS" });
+    }
+  }
 
 const requestNewCode = async (req, res) => {
     const { phone, email } = req.body;
@@ -232,6 +270,7 @@ const login = async (req, res) => {
 module.exports = {
     register,
     verifyOtp,
+    getJwks,
     requestNewCode,
     login,
     

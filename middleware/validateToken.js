@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
+const fs = require("fs");
 const User = require("../models/User");
 require('dotenv').config();
+
+// Read public key (verify uses PUBLIC key)
+const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
 
 const isLoggedIn = async(req, res, next)=>{
     try {
@@ -11,7 +15,8 @@ const isLoggedIn = async(req, res, next)=>{
         }
 
         const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.SECRET_TOKEN);
+        // Verify with public key instead of SECRET
+        const decoded = jwt.verify(token, publicKey, { algorithms: ["RS256"] });
         req.user = await User.findById(decoded.userId);
 
         if (!req.user) {
