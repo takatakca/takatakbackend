@@ -1,32 +1,49 @@
 const User = require("../models/User");
-const { getOrders } = require("../services/upmindService");
+const { getOrders, getInvoices } = require("../services/upmindService");
 
  const getUserDashboard = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    // Exclude password & refreshToken when fetching the user
+    const user = await User.findById(req.user.id).select("-password -refreshToken");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    let orders = [];
+    let invoices = [];
 
-    if (!user.upmindClientId) {
-      return res.json({ orders: [], invoices: [], activity: [] });
+    // if (!user.upmindClientId) {
+    //   return res.json({ orders: [], invoices: [], activity: [] });
+    // }
+
+    if (user.upmindClientId) {
+      try {
+        // Fetch orders (domains, hosting, etc)
+        orders = await getOrders(user.upmindClientId);
+        invoices = await getInvoices(user.upmindClientId); // optional if you implement it
+      } catch (err) {
+        console.error("Upmind API error:", err.response?.data || err.message);
+         // Still respond with user data, but empty orders/invoices
+      }
     }
 
-    // Fetch orders (domains, hosting, etc)
-    const orders = await getOrders(user.upmindClientId);
 
     // You can also store + fetch your own "activity logs" here
     // Example: last login, last purchase, etc.
     const activity = [
-      { action: "login", at: user.lastLogin },
-      { action: "registered", at: user.createdAt }
+      { action: "login", at: user.lastLogin || null },
+      { action: "registered", at: user.createdAt },
     ];
 
     res.json({
       user: {
         id: user._id,
         email: user.email,
-        name: `${user.firstName} ${user.lastName}`
+        name: `${user.firstName} ${user.lastName}`,
+        upmindClientId: user.upmindClientId || null,
       },
       orders,
-      activity
+      invoices,
+      activity,
     });
   } catch (err) {
     console.error(err.response?.data || err.message);

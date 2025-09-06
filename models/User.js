@@ -13,13 +13,20 @@ email : {
     type: String,
     required: true,
     unique: true,
-    match: [ /.+\@.+\..+/]
+    lowercase: true,
+    match: [/.+\@.+\..+/, "Please enter a valid email"],
 },
 
 phone: {
     type: String,
     required: true,
 },
+password: {
+    type: String,
+    required: true,
+    minlength: 6,
+    select: false,
+  },
  
 regTokenExpires: {
     type: Date
@@ -52,6 +59,10 @@ role:{
     enum: ['admin', 'user'],
     default: 'user'
 },
+upmindClientId: { type: String, default: null },
+
+phoneVerified: { type: Boolean, default: false },
+refreshToken: { type: String, default: null },
 
 }, {
     timestamps: true,
