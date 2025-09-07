@@ -21,12 +21,6 @@ phone: {
     type: String,
     required: true,
 },
-password: {
-    type: String,
-    required: true,
-    minlength: 6,
-    select: false,
-  },
  
 regTokenExpires: {
     type: Date
