@@ -1,4 +1,5 @@
 const Users = require('../models/User');
+const { createClient } = require("../services/upmindService");
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const fs = require("fs");
@@ -83,8 +84,17 @@ const register = async(req, res)=>{
 const verifyOtp = async (req, res) => {
     const { phone, email, otp } = req.body;
 
+    console.log("Incoming body:", req.body);
+
+    const query = email ? { email } : { phone: normalizePhone(phone) };
+    console.log("Query used:", query);
+
+    const user = await Users.findOne(query);
+    console.log("User found:", user);
+
+
     try {
-        const user = await Users.findOne(email ? { email }:{ phone: normalizePhone(phone) });
+        const user = await Users.findOne(email ? { email: email.toLowerCase() }:{ phone: normalizePhone(phone) });
 
         if (!user || !user.userotp) {
             return res.status(400).json({ message: "User or OTP not found" });
@@ -106,6 +116,18 @@ const verifyOtp = async (req, res) => {
         user.verifiedAt = new Date();
         user.userotp = undefined;
         user.regTokenExpires = undefined;
+
+        // Create Upmind client only if not already created
+        if (!user.upmindClientId) {
+            try {
+            const upmindRes = await createClient(user);
+            user.upmindClientId = upmindRes.client?.id || upmindRes.id;
+            } catch (err) {
+            console.error("Failed to create Upmind client:", err.response?.data || err.message);
+            // Not fatal – user can still be verified even if Upmind failed
+            }
+        }
+
         await user.save();
 
         // 🔑 Create session & set cookies, issue access token
@@ -119,6 +141,7 @@ const verifyOtp = async (req, res) => {
         userId: user._id,
         phone: user.phone,
         email: user.email,
+        upmindClientId: user.upmindClientId,
         });
 
 

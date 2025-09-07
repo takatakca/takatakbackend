@@ -2,6 +2,9 @@ const express = require('express');
 const {register, requestNewCode, verifyOtp, login, getJwks} = require('../controller/Auth');
 const { getUserDashboard } = require('../controller/userDashboard');
 const { isLoggedIn } = require('../middleware/validateToken');
+const { refreshTokenHandler } = require('../controller/refreshController');
+const { logoutHandler } = require('../controller/logoutController');
+const { ensureUpmindClient } = require('../controller/orderController');
 
 
 const router = express.Router();
@@ -10,7 +13,10 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/verify-otp', verifyOtp);
 router.get('/well-known/jwks.json', getJwks);
+router.post('/auth/refresh', refreshTokenHandler);
+router.post('/auth/logout', logoutHandler);
 router.post('/resend-code', requestNewCode);
 router.get('/dashboard', isLoggedIn, getUserDashboard)
+router.get('/upmind-client', isLoggedIn, ensureUpmindClient) // fetch my orders
 
 module.exports = router;
