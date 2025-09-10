@@ -2,8 +2,15 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
-const randomToken = (size = 48) => crypto.randomBytes(size).toString("hex"); // ~96 chars
-const hashToken = async (token) => await bcrypt.hash(token, 12);
-const verifyTokenHash = async (token, hash) => await bcrypt.compare(token, hash);
+function randomToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
 
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+async function verifyTokenHash(token, hashed) {
+  return bcrypt.compare(token, hashed);
+}
 module.exports = { randomToken, hashToken, verifyTokenHash };

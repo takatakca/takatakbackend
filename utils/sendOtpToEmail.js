@@ -15,6 +15,7 @@ const nodemailer = require('nodemailer');
         });
 
     const sendOtpToEmail = async (email, otp) => {
+        if (!email) throw new Error('Missing email');
         await mailTransporter.sendMail({
             from: `"Takatak Team" <${process.env.EMAIL_USER}> `,
             to: email,
