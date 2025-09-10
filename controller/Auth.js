@@ -74,30 +74,71 @@ const register = async (req, res) => {
 };
 
 
+// ======================================
+// LOGIN — phone via Twilio Verify / email via DIY
+// ======================================
+const login = async (req, res) => {
+    const { phone, email } = req.body;
+  
+    try {
+      if (phone) {
+        const user = await Users.findOne({ phone: normalizePhone(phone) });
+        if (!user) return res.status(401).json({ error: "Phone number not found" });
+  
+        await sendOtpToPhone(user.phone);
+        user.lastOtpRequestedAt = Date.now();
+        await user.save();
+  
+        return res.status(200).json({ message: "OTP sent to your phone" });
+      }
+  
+      if (email) {
+        const user = await Users.findOne({ email });
+        if (!user) return res.status(401).json({ error: "Email address not found" });
+  
+        const otp = generateOtp();
+        await sendOtpToEmail(user.email, otp);
+  
+        user.userotp = await bcrypt.hash(otp, 10);
+        user.regTokenExpires = Date.now() + 5 * 60 * 1000;
+        user.lastOtpRequestedAt = Date.now();
+        await user.save();
+  
+        return res.status(200).json({ message: "OTP sent to your email" });
+      }
+  
+      return res.status(400).json({ message: "Email or phone number is required" });
+    } catch (error) {
+      console.error("Login Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
 // VERIFY OTP — phone: Verify check; email: DIY compare
+// ======================================
+// VERIFY OTP — Twilio Verify (phone) / bcrypt check (email)
+// ======================================
 const verifyOtp = async (req, res) => {
     const { phone, email, otp } = req.body;
-    // const user = await Users.findOne(email ? { email: email.toLowerCase() }:{ phone: formatE164(normalizePhone(phone)) });
     try {
         // PHONE (Twilio Verify)
         if(phone){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
-            
-            const to = normalizePhone(phone); // "+1..."
+
+            const user = await Users.findOne({ phone: normalizePhone(phone) });
+            if (!user) return res.status(401).json({ error: "Phone number not found" });  
            
             // Twilio Verify: check the code
-            const check = checkOtpFromPhone( otp );
+            const check = await checkOtpFromPhone(user.phone, otp );
                   // at this point, OTP is verified by Twilio    
-                  if (check.status !== 'approved') {
+                  if (!check.valid) {
                     return res.status(400).json({ message: 'Invalid or expired code' });
                 }
 
             // update user record as verified
-             const user = await Users.findOne({ phone: to });
-             if (!user) return res.status(404).json({ message: 'User not found' });
             user.isVerified = true;
             user.verifiedAt = new Date();
-            user.userotp = undefined;        // clear any email OTP leftovers
+            user.userotp = undefined; // clear any email OTP leftovers
             user.regTokenExpires = undefined;
 
             // Ensure Upmind client exists
@@ -131,9 +172,16 @@ const verifyOtp = async (req, res) => {
         // EMAIL (DIY – your existing bcrypt flow)
         if(email){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
+
             const user = await Users.findOne({ email: email.toLowerCase() });
-            if (!user || !user.userotp) return res.status(400).json({ message: "User or OTP not found" });
-            if (user.regTokenExpires < Date.now()) return res.status(400).json({ message: 'OTP has expired' });
+            if (!user) return res.status(400).json({ message: "Email not found" });
+
+            if (!user.userotp || user.regTokenExpires < Date.now()) return res.status(400).json({ message: 'OTP not requested' });
+
+            if (Date.now() > user.regTokenExpires) {
+                return res.status(400).json({ error: "OTP expired" });
+              }
+
             const isMatch = await bcrypt.compare(otp, user.userotp);
             if (!isMatch) return res.status(400).json({ message: 'Invalid OTP recheck!' });
 
@@ -175,6 +223,55 @@ const verifyOtp = async (req, res) => {
 
 };
 
+// ======================================
+// RESEND OTP — phone via Verify / email via DIY
+// ======================================
+const requestNewCode = async (req, res) => {
+    const { phone, email } = req.body;
+    try {
+      const cooldownMs = 30 * 1000;
+  
+      if (phone) {
+        const user = await Users.findOne({ phone: normalizePhone(phone) });
+        if (!user) return res.status(401).json({ message: "Invalid phone number" });
+  
+        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
+          return res.status(429).json({ message: "Please wait before requesting another code." });
+        }
+  
+        await sendOtpToPhone(user.phone);
+        user.lastOtpRequestedAt = Date.now();
+        await user.save();
+  
+        return res.status(200).json({ message: "OTP has been resent to your phone" });
+      }
+  
+      if (email) {
+        const user = await Users.findOne({ email });
+        if (!user) return res.status(401).json({ message: "Invalid email address" });
+  
+        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
+          return res.status(429).json({ message: "Please wait before requesting another code." });
+        }
+  
+        const otp = generateOtp();
+        await sendOtpToEmail(user.email, otp);
+  
+        user.userotp = await bcrypt.hash(otp, 10);
+        user.regTokenExpires = Date.now() + 5 * 60 * 1000;
+        user.lastOtpRequestedAt = Date.now();
+        await user.save();
+  
+        return res.status(200).json({ message: "OTP has been resent to your email" });
+      }
+  
+      return res.status(400).json({ message: "Email or phone number is required" });
+    } catch (error) {
+      console.error("Error resending code:", error);
+      return res.status(500).json({ message: "Something went wrong. Try again later." });
+    }
+  };
+
 const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
 // onvert to JWK and serve as JWKS
 const getJwks = async(req, res) => {
@@ -191,6 +288,14 @@ const getJwks = async(req, res) => {
         res.status(500).json({ error: "Failed to generate JWKS" });
     }
   }
+
+  module.exports = {
+    register,
+    verifyOtp,
+    getJwks,
+    requestNewCode,
+    login,
+  };
 
 
 
