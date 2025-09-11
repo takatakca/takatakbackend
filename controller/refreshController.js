@@ -61,7 +61,7 @@ async function refreshTokenHandler(req, res) {
     const accessToken = jwt.sign(
       { sub: String(session.userId), sid: session._id },
       PRIVATE_KEY,
-      { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://auth.takatak.com" }
+      { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
     );
 
     return res.json({ accessToken });

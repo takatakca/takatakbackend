@@ -11,7 +11,8 @@ const { createClient } = require("../services/upmindService");
 const jwt = require('jsonwebtoken');
 const fs = require("fs");
 const jwkToPem = require("jwk-to-pem");
-const { importSPKI, exportJWK } = require("jose");
+// const { importSPKI, exportJWK } = require("jose");
+
 
 
 // ======================================
@@ -145,7 +146,7 @@ const verifyOtp = async (req, res) => {
             if (!user.upmindClientId) {
             try {
             const upmindRes = await createClient(user);
-            user.upmindClientId = upmindRes.client?.id || upmindRes.id;
+            user.upmindClientId = upmindRes.data?.id || upmindRes.id;
             } catch (err) {
             console.error("Failed to create Upmind client:", err.response?.data || err.message);
             // Not fatal – user can still be verified even if Upmind failed
@@ -194,7 +195,7 @@ const verifyOtp = async (req, res) => {
             if (!user.upmindClientId) {
                 try {
                 const upmindRes = await createClient(user);
-                user.upmindClientId = upmindRes.client?.id || upmindRes.id;
+                user.upmindClientId = upmindRes.data?.id || upmindRes.id;
                 } catch (err) {
                 console.error("Failed to create Upmind client:", err.response?.data || err.message);
                 // Not fatal – user can still be verified even if Upmind failed
@@ -275,6 +276,8 @@ const requestNewCode = async (req, res) => {
 const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
 // onvert to JWK and serve as JWKS
 const getJwks = async(req, res) => {
+   // dynamic import inside CommonJS
+    const { importSPKI, exportJWK } = await import("jose");
     try {
         const keyObj = await importSPKI(publicKey, "RS256");
         const jwk = await exportJWK(keyObj);

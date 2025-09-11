@@ -4,7 +4,7 @@ const { getOrders, getInvoices } = require("../services/upmindService");
  const getUserDashboard = async (req, res) => {
   try {
     // Exclude password & refreshToken when fetching the user
-    const user = await User.findById(req.user.id).select("-password -refreshToken");
+    const user = await User.findById(req.user.id).select("-password -refreshToken -userotp");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

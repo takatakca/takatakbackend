@@ -1,4 +1,4 @@
-// controllers/authSession.js
+
 const { v4: uuidv4 } = require("uuid");
 const Session = require("../models/Session");
 const { randomToken, hashToken } = require("../utils/tokenHelpers");
@@ -44,9 +44,14 @@ async function createSessionAndSetCookies(user, req, res) {
 
   // issue access token signed RS256
   const accessToken = jwt.sign(
-    { sub: String(user._id), sid },
+    { 
+      sub: String(user._id),
+       sid,
+       role: user.role,
+       email: user.email  
+    },
     PRIVATE_KEY,
-    { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://auth.takatak.com" }
+    { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
   );
 
   return { accessToken, sid };

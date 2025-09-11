@@ -1,7 +1,9 @@
 const axios = require("axios");
 
+// const UP_API = "https://fimjpyw0mnzy.upmind.io/api";
 const UP_API = "https://api.upmind.io/api";
 const ADMIN_TOKEN = process.env.UPMIND_KEY;
+const UPMIND_BRAND_ID = process.env.UPMIND_BRAND_ID; 
 
 const client = axios.create({
   baseURL: UP_API,
@@ -15,6 +17,7 @@ const client = axios.create({
 async function createClient(user) {
   try {
     const res = await client.post("/admin/clients", {
+      brand_id: UPMIND_BRAND_ID,
       email: user.email,
       firstname: user.firstName,
       lastname: user.lastName,
