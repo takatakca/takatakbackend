@@ -28,7 +28,7 @@ password: {
 },
 
   // encrypted plain password for Upmind (we decrypt & remove after creating Upmind client)
-  upmindPasswordEnc: { type: String, select: false, default: null },
+  encryptedPassword: { type: String, select: false, default: null },
  
 regTokenExpires: {
     type: Date

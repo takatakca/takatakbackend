@@ -4,6 +4,7 @@ const { normalizePhone } = require("../utils/phoneUtils");
 const {sendOtpToPhone, checkOtpFromPhone} = require("../utils/sendOtpToPhone");
 const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
+const { encrypt, decrypt } = require("../utils/crypto");
 const bcrypt = require("bcrypt");
 const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const { createSessionAndSetCookies } = require("./authSession")
@@ -20,10 +21,10 @@ const jwkToPem = require("jwk-to-pem");
 // ======================================
 
 const register = async (req, res) => {
-    const { firstName, lastName, email, username, phone } = req.body;
+    const { firstName, lastName, email, username, phone, password } = req.body;
 
         try {
-            if (!firstName || !lastName || !email || !phone || !username) {
+            if (!firstName || !lastName || !email || !phone || !username || !password) {
                 return res.status(400).json({ message: 'Please fill in all required fields.' });
             }
 
@@ -51,6 +52,9 @@ const register = async (req, res) => {
             console.error('Twilio Verify Error:', err.message || err);
             return res.status(500).json({ error: 'Failed to send OTP. Check phone number or try again later.' });
             }
+
+            //  Encrypt password before saving
+            const encryptedPassword = encrypt(password);
             
             // Create user record (no userotp/regTokenExpires for phone)
             const RegUser = new Users({
@@ -59,6 +63,7 @@ const register = async (req, res) => {
             email,
             username,
             phone: storedPhone,
+            encryptedPassword, //  temporary storage
             });
 
             await RegUser.save();
@@ -155,11 +160,20 @@ const verifyOtp = async (req, res) => {
             // Ensure Upmind client exists
             if (!user.upmindClientId) {
             try {
-            const upmindRes = await createClient(user);
-            user.upmindClientId = upmindRes.data?.id || upmindRes.id;
+              let plainPassword;
+                if (user.encryptedPassword) {
+                    plainPassword = decrypt(user.encryptedPassword);
+                }
+              const upmindRes = await createClient({
+                email: user.email,
+                phone: user.phone,
+                password: plainPassword,
+              });
+              user.upmindClientId = upmindRes.data?.id || upmindRes.id;
+              user.encryptedPassword = undefined; //  clear after use
             } catch (err) {
-            console.error("Failed to create Upmind client:", err.response?.data || err.message);
-            // Not fatal – user can still be verified even if Upmind failed
+              console.error("Failed to create Upmind client:", err.response?.data || err.message);
+              // Not fatal – user can still be verified even if Upmind failed
             }
         }
         await user.save();
@@ -219,8 +233,35 @@ const verifyOtp = async (req, res) => {
              // Create Upmind client only if not already created
             if (!user.upmindClientId) {
                 try {
-                const upmindRes = await createClient(user);
+                  let plainPassword;
+                    if (user.encryptedPassword) {
+                        plainPassword = decrypt(user.encryptedPassword);
+                    }
+                  // Build payload safely
+                  const upmindPayload = {
+                    email: user.email,
+                    password: plainPassword, // required
+                  };
+
+                  // Optional fields
+                  if (user.phone) upmindPayload.phone = user.phone;
+                  if (user.firstName) upmindPayload.first_name = user.firstName;
+                  if (user.lastName) upmindPayload.last_name = user.lastName;
+                  if (user.address) {
+                    upmindPayload.address = {
+                      line1: user.address.line1,
+                      line2: user.address.line2 || "",
+                      city: user.address.city,
+                      state: user.address.state,
+                      postcode: user.address.postcode,
+                      country: user.address.country,
+                    };
+                  }
+                const upmindRes = await createClient(upmindPayload);
                 user.upmindClientId = upmindRes.data?.id || upmindRes.id;
+
+                // 🔐 Clear encrypted password after using it once
+                user.encryptedPassword = undefined; // 🔑 clear after use
                 } catch (err) {
                 console.error("Failed to create Upmind client:", err.response?.data || err.message);
                 // Not fatal – user can still be verified even if Upmind failed
