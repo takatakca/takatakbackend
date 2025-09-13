@@ -101,8 +101,8 @@ const login = async (req, res) => {
         await sendOtpToEmail(user.email, otp);
   
         user.userotp = await bcrypt.hash(otp, 10);
-        user.regTokenExpires = Date.now() + 5 * 60 * 1000;
-        user.lastOtpRequestedAt = Date.now();
+        user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
+        user.lastOtpRequestedAt = new Date();
         await user.save();
   
         return res.status(200).json({ message: "OTP sent to your email" });
@@ -136,11 +136,21 @@ const verifyOtp = async (req, res) => {
                     return res.status(400).json({ message: 'Invalid or expired code' });
                 }
 
+                const wasAlreadyVerified = user.isVerified;
+
             // update user record as verified
             user.isVerified = true;
             user.verifiedAt = new Date();
             user.userotp = undefined; // clear any email OTP leftovers
             user.regTokenExpires = undefined;
+
+            if (wasAlreadyVerified) {
+              user.lastAction = "login";
+            } else {
+              user.lastAction = "register";
+            }
+            user.lastActionAt = new Date();
+            user.activity.push({ action: user.lastAction, at: user.lastActionAt });
 
             // Ensure Upmind client exists
             if (!user.upmindClientId) {
@@ -174,22 +184,37 @@ const verifyOtp = async (req, res) => {
         if(email){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            const user = await Users.findOne({ email: email.toLowerCase() });
+            const user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp");;
             if (!user) return res.status(400).json({ message: "Email not found" });
 
-            if (!user.userotp || user.regTokenExpires < Date.now()) return res.status(400).json({ message: 'OTP not requested' });
+            if (!user.userotp) return res.status(400).json({ message: 'OTP not requested' });
+            // user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
 
             if (Date.now() > user.regTokenExpires) {
-                return res.status(400).json({ error: "OTP expired" });
+              // expired — clear OTP immediately
+                user.userotp = undefined;
+                user.regTokenExpires = undefined;
+                await user.save();
+                return res.status(400).json({ message: "OTP expired" });
               }
 
             const isMatch = await bcrypt.compare(otp, user.userotp);
             if (!isMatch) return res.status(400).json({ message: 'Invalid OTP recheck!' });
 
+            const wasAlreadyVerified = user.isVerified;
+
             user.isVerified = true;
             user.verifiedAt = new Date();
             user.userotp = undefined;
             user.regTokenExpires = undefined;
+
+            if (wasAlreadyVerified) {
+              user.lastAction = "login";
+            } else {
+              user.lastAction = "register";
+            }
+            user.lastActionAt = new Date();
+            user.activity.push({ action: user.lastAction, at: user.lastActionAt });
             
              // Create Upmind client only if not already created
             if (!user.upmindClientId) {
@@ -251,7 +276,7 @@ const requestNewCode = async (req, res) => {
         const user = await Users.findOne({ email });
         if (!user) return res.status(401).json({ message: "Invalid email address" });
   
-        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
+        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt.getTime() < cooldownMs) {
           return res.status(429).json({ message: "Please wait before requesting another code." });
         }
   
@@ -259,8 +284,9 @@ const requestNewCode = async (req, res) => {
         await sendOtpToEmail(user.email, otp);
   
         user.userotp = await bcrypt.hash(otp, 10);
-        user.regTokenExpires = Date.now() + 5 * 60 * 1000;
-        user.lastOtpRequestedAt = Date.now();
+        user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
+        user.lastOtpRequestedAt = new Date();
+
         await user.save();
   
         return res.status(200).json({ message: "OTP has been resent to your email" });
@@ -272,6 +298,37 @@ const requestNewCode = async (req, res) => {
       return res.status(500).json({ message: "Something went wrong. Try again later." });
     }
   };
+
+
+const createUpmindSession = async (req, res) => {
+  try {
+    // 1. Make sure user is authenticated (e.g. req.user is set by your auth middleware)
+    const userId = req.user.id;
+
+    // 2. Fetch upmindClientId securely
+    const user = await Users.findById(userId).select("+upmindClientId");
+    if (!user || !user.upmindClientId) {
+      return res.status(404).json({ message: "Upmind client not found" });
+    }
+
+    // 3. Create a short-lived token wrapping upmindClientId
+    const token = jwt.sign(
+      {
+        upmindId: user.upmindClientId,
+        sub: user._id.toString(),
+      },
+      process.env.UPMIND_SECRET, // keep this private
+      { expiresIn: "5m" } // only valid for 5 minutes
+    );
+
+    // 4. Return token to frontend
+    res.json({ upmindToken: token });
+  } catch (err) {
+    console.error("Error creating Upmind session:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
 // onvert to JWK and serve as JWKS
@@ -296,6 +353,7 @@ const getJwks = async(req, res) => {
     register,
     verifyOtp,
     getJwks,
+    createUpmindSession,
     requestNewCode,
     login,
   };
@@ -304,326 +362,3 @@ const getJwks = async(req, res) => {
 
 
 
-// const { createClient } = require("../services/upmindService");
-// const bcrypt = require('bcrypt');
-// const fs = require("fs");
-// const { importSPKI, exportJWK } = require("jose");
-// const sendOtpToPhone = require('../utils/sendOtpToPhone');   // Verify SMS
-// const sendOtpToEmail = require('../utils/sendOtpToEmail');   // your existing DIY email
-// const generateOtp = require('../utils/generateOtp');         // used only for email
-// const { normalizePhone, formatE164 } = require('../utils/phoneUtils');
-// const { createSessionAndSetCookies } = require("./authSession");
-
-
-
-
-  
-    
-  
-
-//       
-//       if (email) {
-//         
-  
-//         
-//         
-//         
-  
-
-  
-
-//       }
-  
-//       
-//     } catch (error) {
-
-//     }
-//   };
-  
-
-// // JWKS (as you had)
-// const publicKey = fs.readFileSync("./keys/public.pem", "utf8");
-// const getJwks = async (req, res) => {
-//   try {
-//     const keyObj = await importSPKI(publicKey, "RS256");
-//     const jwk = await exportJWK(keyObj);
-//     jwk.use = "sig";
-//     jwk.kid = "takatak-key";
-//     jwk.alg = "RS256";
-//     res.json({ keys: [jwk] });
-//   } catch (error) {
-//     res.status(500).json({ error: "Failed to generate JWKS" });
-//   }
-// };
-
-// // RESEND — phone via Verify, email via DIY
-// const requestNewCode = async (req, res) => {
-//   const { phone, email } = req.body;
-//   try {
-//     const cooldownMs = 30 * 1000;
-
-//     if (phone) {
-//       const user = await Users.findOne({ phone: normalizePhone(phone) });
-//       if (!user) return res.status(401).json({ error: 'Invalid phone number' });
-
-//       if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
-//         return res.status(429).json({ message: 'Please wait before requesting another code.' });
-//       }
-
-//       await sendOtpToPhone(user.phone); // Verify
-//       user.lastOtpRequestedAt = Date.now();
-//       await user.save();
-
-//       return res.status(200).json({ message: 'OTP has been resent to your phone' });
-//     }
-
-//     if (email) {
-//       const user = await Users.findOne({ email });
-//       if (!user) return res.status(401).json({ error: 'Invalid email address' });
-
-//       if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
-//         return res.status(429).json({ message: 'Please wait before requesting another code.' });
-//       }
-
-//       const otp = generateOtp();
-//       await sendOtpToEmail(user.email, otp);
-//       user.userotp = await bcrypt.hash(otp, 10);
-//       user.regTokenExpires = Date.now() + 5 * 60 * 1000;
-//       user.lastOtpRequestedAt = Date.now();
-//       await user.save();
-
-//       return res.status(200).json({ message: 'OTP has been resent to your email' });
-//     }
-
-//     return res.status(400).json({ message: 'Email or phone number is required' });
-//   } catch (error) {
-//     console.error("Error resending code:", error);
-//     return res.status(500).json({ message: 'Something went wrong. Try again later.' });
-//   }
-// };
-
-// // LOGIN — phone via Verify start; email via DIY
-// const login = async (req, res) => {
-//   const { phone, email } = req.body;
-//   try {
-//     if (phone) {
-//       const user = await Users.findOne({ phone: normalizePhone(phone) });
-//       if (!user) return res.status(401).json({ error: 'Phone number not found' });
-
-//       await sendOtpToPhone(user.phone); // Verify start
-//       user.lastOtpRequestedAt = Date.now();
-//       await user.save();
-
-//       return res.status(200).json({ message: 'OTP sent to your phone' });
-//     }
-
-//     if (email) {
-//       const user = await Users.findOne({ email });
-//       if (!user) return res.status(401).json({ error: 'Email address not found' });
-
-//       const otp = generateOtp();
-//       await sendOtpToEmail(user.email, otp);
-//       user.userotp = await bcrypt.hash(otp, 10);
-//       user.regTokenExpires = Date.now() + 5 * 60 * 1000;
-//       user.lastOtpRequestedAt = Date.now();
-//       await user.save();
-
-//       return res.status(200).json({ message: 'OTP sent to your email' });
-//     }
-
-//     return res.status(400).json({ message: 'Email or phone number is required' });
-//   } catch (error) {
-//     console.error("Login Error:", error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-// module.exports = {
-//   register,
-//   verifyOtp,
-//   getJwks,
-//   requestNewCode,
-//   login,
-// };
-
-
-
-// const Users = require('../models/User');
-// 
-// const bcrypt = require('bcrypt');
-
-// const sendOtpToPhone = require('../utils/sendOtpToPhone');
-// const sendOtpToEmail = require('../utils/sendOtpToEmail');
-// const generateOtp = require('../utils/generateOtp');
-//
-// 
-// 
-// 
-
-
-
-
-
-  
-
-
-// // const verifyOtp = async (req, res) => {
-// //     const { phone, email, otp } = req.body;
-
-// //     console.log("Incoming body:", req.body);
-
-// //     const query = email ? { email } : { phone: normalizePhone(phone) };
-// //     console.log("Query used:", query);
-
-// //     const user = await Users.findOne(query);
-// //     console.log("User found:", user);
-
-
-// //     try {
-// //         
-
-
-
-// //         
-
-
-
-// //         // const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, "utf8")
-// //         // const token = jwt.sign(
-// //         //     { userId: user._id, email: user.email, phone: user.phone},
-// //         //     // process.env.SECRET_TOKEN,
-// //         //     privateKey,
-// //         //     { algorithm: "RS256", expiresIn: '1h' }
-// //         //   );
-
-          
-// //         //   return res.status(200).json({
-// //         //     message: 'User verified successfully',
-// //         //     token,
-// //         //     userId: user._id
-// //         //   });
-          
-
-// //     } catch (error) {
-// //         console.error("OTP verification error:", error);
-// //         return res.status(500).json({ message: 'Something went wrong' });
-// //     }
-// // };
-
-
-
-
-// const requestNewCode = async (req, res) => {
-//     const { phone, email } = req.body;
-
-//     try {
-//         let userDetail;
-//         let otpTarget;
-
-//         // Determine whether the user is using email or phone
-//         if (email) {
-//             userDetail = await Users.findOne({ email });
-//             if (!userDetail) {
-//                 return res.status(401).json({ error: 'Invalid email address' });
-//             }
-//             otpTarget = 'email';
-//         } else if (phone) {
-//             const storedPhone = normalizePhone(phone);
-//             userDetail = await Users.findOne({ phone: storedPhone });
-
-//             if (!userDetail) {
-//                 return res.status(401).json({ error: 'Invalid phone number' });
-//             }
-//             otpTarget = 'phone';
-//         } else {
-//             return res.status(400).json({ message: 'Email or phone number is required' });
-//         }
-
-//         // NEW COOLDOWN LOGIC (30 sec)
-//         const cooldownDuration = 30 * 1000;
-//         if (userDetail.lastOtpRequestedAt && Date.now() - userDetail.lastOtpRequestedAt < cooldownDuration) {
-//         return res.status(429).json({ message: 'Please wait before requesting another code.' });
-//         }
-
-//         let otp = generateOtp();
-
-//         // Send the OTP based on target type
-//         if (otpTarget === 'email') {
-//             await sendOtpToEmail(userDetail.email, otp);
-//         } else if (otpTarget === 'phone') {
-//             await sendOtpToPhone(formatForWhatsApp(userDetail.phone), otp);
-//         }
-
-
-//         // Hash OTP and update user record
-//         userDetail.userotp = await bcrypt.hash(otp, 10);
-//         userDetail.regTokenExpires = Date.now() + 5 * 60 * 1000; // expires in 5 minutes
-//         userDetail.lastOtpRequestedAt = Date.now(); // UPDATE THIS
-        
-//         await userDetail.save();
-
-//         return res.status(200).json({ message: `OTP has been resent to your ${otpTarget}` });
-
-//     } catch (error) {
-//         console.error("Error resending code:", error);
-//         return res.status(500).json({ message: 'Something went wrong. Try again later.' });
-//     }
-// };
-
-
-// const login = async (req, res) => {
-//     const { phone, email } = req.body;
-
-//     try {
-//         let userLog;
-//         let otpTarget;
-        
-//         if (email) {
-//             userLog = await Users.findOne({ email });        
-//             if (!userLog) {
-//                 return res.status(401).json({ error: 'Email address not found' });
-//             }
-//             otpTarget = 'email';
-//         } else if (phone) {
-//             const storedPhone = normalizePhone(phone);
-//             userLog = await Users.findOne({ phone: storedPhone });
-
-//             if (!userLog) {
-//                 return res.status(401).json({ error: 'Phone number not found' });
-//             }
-//             otpTarget = 'phone';
-//         } else {
-//             return res.status(400).json({ message: 'Email or phone number is required' });
-//         }
-
-//         const otp = generateOtp();
-
-//         if (otpTarget === 'email') {
-//             await sendOtpToEmail(userLog.email, otp);
-//             // return res.status(200).json({ message: 'OTP sent to email' });
-//         } else {
-//             await sendOtpToPhone(formatForWhatsApp(userLog.phone), otp);
-//         }
-        
-//         const hashedOtp = await bcrypt.hash(otp, 10);
-//         userLog.userotp = hashedOtp;
-//         userLog.regTokenExpires = Date.now() + 5 * 60 * 1000;
-//         await userLog.save();
-
-//         return res.status(200).json({ message: `OTP sent to your ${otpTarget}` });
-        
-
-//     } catch (error) {
-//         console.error("Login Error:", error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// };
-
-// module.exports = {
-//     register,
-//     verifyOtp,
-//     getJwks,
-//     requestNewCode,
-//     login,
-    
-// };

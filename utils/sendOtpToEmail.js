@@ -20,7 +20,7 @@ const nodemailer = require('nodemailer');
             from: `"Takatak Team" <${process.env.EMAIL_USER}> `,
             to: email,
             subject: 'OTP from Takatak platform',
-            text: `Your OTP is: ${otp}. It will expire in 10 minutes.`
+            text: `Your OTP is: ${otp}. It will expire in 5 minutes.\n \nDon't share this code with anyone;\n Our employees will never ask for this code`
         });
     };
 

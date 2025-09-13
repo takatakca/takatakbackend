@@ -20,7 +20,15 @@ email : {
 phone: {
     type: String,
     required: true,
+    match: [/^\+?[1-9]\d{1,14}$/, "Please enter a valid phone number"],
 },
+password: {
+  type: String,
+  select: false,
+},
+
+  // encrypted plain password for Upmind (we decrypt & remove after creating Upmind client)
+  upmindPasswordEnc: { type: String, select: false, default: null },
  
 regTokenExpires: {
     type: Date
@@ -36,7 +44,8 @@ verifiedAt: {
 },
 
 userotp: {
-    type: String
+    type: String,
+    select: false
 },
 
 lastOtpRequestedAt: {
@@ -53,10 +62,20 @@ role:{
     enum: ['admin', 'user'],
     default: 'user'
 },
-upmindClientId: { type: String, default: null },
+upmindClientId: { type: String, default: null, select: false },
+
 
 phoneVerified: { type: Boolean, default: false },
-refreshToken: { type: String, default: null },
+refreshToken: { type: String, default: null, select: false },
+lastAction: { type: String, enum: ["register", "login"], default: "register" },
+lastActionAt: { type: Date, default: Date.now },
+
+activity: [
+  {
+    action: { type: String, enum: ["register", "login"] },
+    at: { type: Date, default: Date.now }
+  }
+]
 
 }, {
     timestamps: true,
