@@ -3,7 +3,6 @@ const {register, requestNewCode, verifyOtp, login, getJwks, createUpmindSession}
 const { getUserDashboard } = require('../controller/userDashboard');
 const { refreshTokenHandler } = require('../controller/refreshController');
 const { logoutHandler } = require('../controller/logoutController');
-const { ensureUpmindClient } = require('../controller/orderController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 
@@ -17,7 +16,6 @@ router.post('/auth/refresh', refreshTokenHandler);
 router.post('/auth/logout', logoutHandler);
 router.post('/resend-code', requestNewCode);
 router.get('/dashboard',  authMiddleware, getUserDashboard)
-router.get('/upmind-client', authMiddleware, ensureUpmindClient) // fetch my orders
 router.get('/upmindClientId', authMiddleware, createUpmindSession) 
 
 module.exports = router;
