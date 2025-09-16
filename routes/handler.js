@@ -8,14 +8,30 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
-router.post('/verify-otp', verifyOtp);
-router.get('/well-known/jwks.json', getJwks);
-router.post('/auth/refresh', refreshTokenHandler);
-router.post('/auth/logout', logoutHandler);
-router.post('/resend-code', requestNewCode);
-router.get('/dashboard',  authMiddleware, getUserDashboard)
-router.get('/upmindClientId', authMiddleware, createUpmindSession) 
+/**
+ * ======================
+ * 🔓 Public Auth Routes
+ * ======================
+ */
+
+router.post('/auth/register', register);
+router.post('/auth/login', login);
+router.post('/auth/verify-otp', verifyOtp);
+router.post('/auth/resend-code', requestNewCode);
+router.get('/auth/well-known/jwks.json', getJwks);
+
+/**
+ * ======================
+ * 🔐 Authenticated Routes
+ * ======================
+ */
+router.post('/auth/refresh', authMiddleware, refreshTokenHandler);
+router.post('/auth/logout', authMiddleware,  logoutHandler);
+
+// All `/user/*` requires authentication
+router.use('/user', authMiddleware);
+
+router.get('/user/dashboard', getUserDashboard)
+router.get('/user/upmindClientId', createUpmindSession) 
 
 module.exports = router;
