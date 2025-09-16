@@ -126,12 +126,35 @@ const login = async (req, res) => {
 // ======================================
 const verifyOtp = async (req, res) => {
     const { phone, email, otp } = req.body;
+
     try {
+        function buildUpmindPayload(user, plainPassword) {
+          const payload = {
+            email: user.email,
+            password: plainPassword,
+          };
+          if (user.phone) payload.phone = user.phone;
+          if (user.firstName) payload.first_name = user.firstName;
+          if (user.lastName) payload.last_name = user.lastName;
+          if (user.username) payload.username = user.username;
+          if (user.address) {
+            payload.address = {
+              line1: user.address.line1,
+              line2: user.address.line2 || "",
+              city: user.address.city,
+              state: user.address.state,
+              postcode: user.address.postcode,
+              country: user.address.country,
+            };
+          }
+          return payload;
+        }
+        let user
         // PHONE (Twilio Verify)
         if(phone){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            const user = await Users.findOne({ phone: normalizePhone(phone) });
+            user = await Users.findOne({ phone: normalizePhone(phone) });
             if (!user) return res.status(401).json({ error: "Phone number not found" });  
            
             // Twilio Verify: check the code
@@ -160,20 +183,19 @@ const verifyOtp = async (req, res) => {
             // Ensure Upmind client exists
             if (!user.upmindClientId) {
             try {
-              let plainPassword;
-                if (user.encryptedPassword) {
-                    plainPassword = decrypt(user.encryptedPassword);
-                }
-              const upmindRes = await createClient({
-                email: user.email,
-                phone: user.phone,
-                password: plainPassword,
-              });
-              user.upmindClientId = upmindRes.data?.id || upmindRes.id;
-              user.encryptedPassword = undefined; //  clear after use
+              const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
+
+              if (!plainPassword) {
+                console.warn("No password found for user, skipping Upmind client creation");
+              } else {
+                const upmindRes = await createClient(buildUpmindPayload(user, plainPassword));
+                user.upmindClientId = upmindRes.data?.id || upmindRes.id;
+                user.encryptedPassword = undefined; //  clear after use
+            }
             } catch (err) {
               console.error("Failed to create Upmind client:", err.response?.data || err.message);
               // Not fatal – user can still be verified even if Upmind failed
+              user.upmindRetryNeeded = true; // mark for later retry
             }
         }
         await user.save();
@@ -198,7 +220,7 @@ const verifyOtp = async (req, res) => {
         if(email){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            const user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp");;
+            user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp");;
             if (!user) return res.status(400).json({ message: "Email not found" });
 
             if (!user.userotp) return res.status(400).json({ message: 'OTP not requested' });
@@ -233,38 +255,22 @@ const verifyOtp = async (req, res) => {
              // Create Upmind client only if not already created
             if (!user.upmindClientId) {
                 try {
-                  let plainPassword;
-                    if (user.encryptedPassword) {
-                        plainPassword = decrypt(user.encryptedPassword);
-                    }
-                  // Build payload safely
-                  const upmindPayload = {
-                    email: user.email,
-                    password: plainPassword, // required
-                  };
+                  const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
+                   
 
-                  // Optional fields
-                  if (user.phone) upmindPayload.phone = user.phone;
-                  if (user.firstName) upmindPayload.first_name = user.firstName;
-                  if (user.lastName) upmindPayload.last_name = user.lastName;
-                  if (user.address) {
-                    upmindPayload.address = {
-                      line1: user.address.line1,
-                      line2: user.address.line2 || "",
-                      city: user.address.city,
-                      state: user.address.state,
-                      postcode: user.address.postcode,
-                      country: user.address.country,
-                    };
+                  if (!plainPassword) {
+                    console.warn("No password found for user, skipping Upmind client creation");
+                  } else {
+                    const upmindRes = await createClient(buildUpmindPayload(user, plainPassword));
+                    user.upmindClientId = upmindRes.data?.id || upmindRes.id;
+
+                    // 🔐 Clear encrypted password after using it once
+                    user.encryptedPassword = undefined; // 🔑 clear after use
                   }
-                const upmindRes = await createClient(upmindPayload);
-                user.upmindClientId = upmindRes.data?.id || upmindRes.id;
-
-                // 🔐 Clear encrypted password after using it once
-                user.encryptedPassword = undefined; // 🔑 clear after use
                 } catch (err) {
                 console.error("Failed to create Upmind client:", err.response?.data || err.message);
                 // Not fatal – user can still be verified even if Upmind failed
+                user.upmindRetryNeeded = true; // mark for later retry
                 }
             }
             await user.save();
@@ -314,7 +320,7 @@ const requestNewCode = async (req, res) => {
       }
   
       if (email) {
-        const user = await Users.findOne({ email });
+        const user = await Users.findOne({ email: email.toLowerCase() });
         if (!user) return res.status(401).json({ message: "Invalid email address" });
   
         if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt.getTime() < cooldownMs) {
@@ -327,6 +333,7 @@ const requestNewCode = async (req, res) => {
         user.userotp = await bcrypt.hash(otp, 10);
         user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
         user.lastOtpRequestedAt = new Date();
+        
 
         await user.save();
   

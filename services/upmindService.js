@@ -22,6 +22,8 @@ async function createClient(user) {
       firstname: user.firstName,
       lastname: user.lastName,
       phone: user.phone || undefined,
+      password: user.password || user.plainPassword,
+      // password: user.plainPassword,
     });
     return res.data;
   } catch (err) {
