@@ -154,7 +154,7 @@ const verifyOtp = async (req, res) => {
         if(phone){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            user = await Users.findOne({ phone: normalizePhone(phone) });
+            user = await Users.findOne({ phone: normalizePhone(phone) }).select("+encryptedPassword");
             if (!user) return res.status(401).json({ error: "Phone number not found" });  
            
             // Twilio Verify: check the code
@@ -220,7 +220,7 @@ const verifyOtp = async (req, res) => {
         if(email){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp");;
+            user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp +encryptedPassword");
             if (!user) return res.status(400).json({ message: "Email not found" });
 
             if (!user.userotp) return res.status(400).json({ message: 'OTP not requested' });
@@ -258,14 +258,12 @@ const verifyOtp = async (req, res) => {
                   const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
                    
 
-                  if (!plainPassword) {
-                    console.warn("No password found for user, skipping Upmind client creation");
-                  } else {
+                  if (plainPassword) {
                     const upmindRes = await createClient(buildUpmindPayload(user, plainPassword));
                     user.upmindClientId = upmindRes.data?.id || upmindRes.id;
-
-                    // 🔐 Clear encrypted password after using it once
-                    user.encryptedPassword = undefined; // 🔑 clear after use
+                    user.encryptedPassword = undefined; // clear ONLY after success
+                  } else {
+                    console.warn("No encrypted password found, cannot create Upmind client yet");
                   }
                 } catch (err) {
                 console.error("Failed to create Upmind client:", err.response?.data || err.message);
