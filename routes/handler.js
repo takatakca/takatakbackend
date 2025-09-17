@@ -28,10 +28,8 @@ router.get('/auth/well-known/jwks.json', getJwks);
 router.post('/auth/refresh', authMiddleware, refreshTokenHandler);
 router.post('/auth/logout', authMiddleware,  logoutHandler);
 
-// All `/user/*` requires authentication
-router.use('/user', authMiddleware);
 
-router.get('/user/dashboard', getUserDashboard)
-router.get('/user/upmindClientId', createUpmindSession) 
+router.get('/user/dashboard', authMiddleware, getUserDashboard)
+router.get('/user/upmindClientId', authMiddleware, createUpmindSession) 
 
 module.exports = router;
