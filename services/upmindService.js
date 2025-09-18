@@ -14,6 +14,7 @@ const client = axios.create({
 
 // Create client in Upmind
 async function createClient(user, plainPassword) {
+      console.log("Upmind client password used:", plainPassword);
   try {
     const payload = {
       brand_id: UPMIND_BRAND_ID,
