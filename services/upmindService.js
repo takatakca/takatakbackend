@@ -20,6 +20,7 @@ async function createClient(user, plainPassword) {
       brand_id: UPMIND_BRAND_ID,
       email: user.email,
       password: plainPassword,
+      login_enabled: true,
       
     };
     if (user.firstName) payload.firstname = user.firstName;
