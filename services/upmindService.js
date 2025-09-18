@@ -14,7 +14,7 @@ const client = axios.create({
 
 // Create client in Upmind
 async function createClient(user, plainPassword) {
-      console.log("Upmind client password used:", plainPassword);
+      // console.log("Upmind client password used:", plainPassword);
   try {
     const payload = {
       brand_id: UPMIND_BRAND_ID,
@@ -74,29 +74,3 @@ async function ensureUpmindClient(user) {
 
 
 module.exports = { createClient, getOrders, getInvoices, ensureUpmindClient };
-
-
-// const axios = require("axios");
-
-// const UP_API = "https://api.upmind.io/api";
-// const ADMIN_TOKEN = process.env.UPMIND_KEY;
-
-// const client = axios.create({
-//   baseURL: UP_API,
-//   headers: {
-//     Authorization: `Bearer ${ADMIN_TOKEN}`,
-//     "Content-Type": "application/json",
-//   },
-// });
-
-// // Create new client in Upmind
-// async function createClient(user) {
-//   const res = await client.post("/admin/clients", {
-//     email: user.email,
-//     firstname: user.firstName,
-//     lastname: user.lastName,
-//   });
-//   return res.data;
-// }
-
-// module.exports = { createClient };
