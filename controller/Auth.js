@@ -8,7 +8,7 @@ const { encrypt, decrypt } = require("../utils/crypto");
 const bcrypt = require("bcrypt");
 const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const { createSessionAndSetCookies } = require("./authSession")
-const { createClient } = require("../services/upmindService");
+const { createClient, ensureUpmindClient } = require("../services/upmindService");
 const jwt = require('jsonwebtoken');
 const fs = require("fs");
 const jwkToPem = require("jwk-to-pem");
@@ -128,27 +128,6 @@ const verifyOtp = async (req, res) => {
     const { phone, email, otp } = req.body;
 
     try {
-        function buildUpmindPayload(user, plainPassword) {
-          const payload = {
-            email: user.email,
-            password: plainPassword,
-          };
-          if (user.phone) payload.phone = user.phone;
-          if (user.firstName) payload.first_name = user.firstName;
-          if (user.lastName) payload.last_name = user.lastName;
-          if (user.username) payload.username = user.username;
-          if (user.address) {
-            payload.address = {
-              line1: user.address.line1,
-              line2: user.address.line2 || "",
-              city: user.address.city,
-              state: user.address.state,
-              postcode: user.address.postcode,
-              country: user.address.country,
-            };
-          }
-          return payload;
-        }
         let user
         // PHONE (Twilio Verify)
         if(phone){
@@ -181,24 +160,26 @@ const verifyOtp = async (req, res) => {
             user.activity.push({ action: user.lastAction, at: user.lastActionAt });
 
             // Ensure Upmind client exists
-            if (!user.upmindClientId) {
-            try {
-              const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
+            user = await ensureUpmindClient(user)
 
-              if (!plainPassword) {
-                console.warn("No password found for user, skipping Upmind client creation");
-              } else {
-                const upmindRes = await createClient(buildUpmindPayload(user, plainPassword));
-                user.upmindClientId = upmindRes.data?.id || upmindRes.id;
-                user.encryptedPassword = undefined; //  clear after use
-            }
-            } catch (err) {
-              console.error("Failed to create Upmind client:", err.response?.data || err.message);
-              // Not fatal – user can still be verified even if Upmind failed
-              user.upmindRetryNeeded = true; // mark for later retry
-            }
-        }
-        await user.save();
+        //     if (!user.upmindClientId) {
+        //     try {
+        //       const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
+
+        //       if (plainPassword) {
+        //         const upmindRes = await createClient(user, plainPassword);
+        //         user.upmindClientId = upmindRes.id || upmindRes.data?.id;
+        //         user.encryptedPassword = undefined; //  clear after use
+        //       } else {
+        //         console.warn("No password found for user, skipping Upmind client creation");
+        //     }
+        //     } catch (err) {
+        //       console.error("Failed to create Upmind client:", err.response?.data || err.message);
+        //       // Not fatal – user can still be verified even if Upmind failed
+        //       user.upmindRetryNeeded = true; // mark for later retry
+        //     }
+        // }
+        // await user.save();
 
 
         // Create session + tokens
@@ -253,25 +234,28 @@ const verifyOtp = async (req, res) => {
             user.activity.push({ action: user.lastAction, at: user.lastActionAt });
             
              // Create Upmind client only if not already created
-            if (!user.upmindClientId) {
-                try {
-                  const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
+             user = await ensureUpmindClient(user)
+
+
+            // if (!user.upmindClientId) {
+            //     try {
+            //       const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
                    
 
-                  if (plainPassword) {
-                    const upmindRes = await createClient(buildUpmindPayload(user, plainPassword));
-                    user.upmindClientId = upmindRes.data?.id || upmindRes.id;
-                    user.encryptedPassword = undefined; // clear ONLY after success
-                  } else {
-                    console.warn("No encrypted password found, cannot create Upmind client yet");
-                  }
-                } catch (err) {
-                console.error("Failed to create Upmind client:", err.response?.data || err.message);
-                // Not fatal – user can still be verified even if Upmind failed
-                user.upmindRetryNeeded = true; // mark for later retry
-                }
-            }
-            await user.save();
+            //       if (plainPassword) {
+            //         const upmindRes = await createClient(user, plainPassword);
+            //         user.upmindClientId = upmindRes.id || upmindRes.data?.id;
+            //         user.encryptedPassword = undefined; //  clear after use
+            //       } else {
+            //         console.warn("No encrypted password found, cannot create Upmind client yet");
+            //       }
+            //     } catch (err) {
+            //     console.error("Failed to create Upmind client:", err.response?.data || err.message);
+            //     // Not fatal – user can still be verified even if Upmind failed
+            //     user.upmindRetryNeeded = true; // mark for later retry
+            //     }
+            // }
+            // await user.save();
     
             const { accessToken, sid } = await createSessionAndSetCookies(user, req, res);
             return res.status(200).json({

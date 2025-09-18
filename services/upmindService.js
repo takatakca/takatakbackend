@@ -1,6 +1,4 @@
 const axios = require("axios");
-
-// const UP_API = "https://fimjpyw0mnzy.upmind.io/api";
 const UP_API = "https://api.upmind.io/api";
 const ADMIN_TOKEN = process.env.UPMIND_KEY;
 const UPMIND_BRAND_ID = process.env.UPMIND_BRAND_ID; 
@@ -14,17 +12,29 @@ const client = axios.create({
 });
 
 // Create client in Upmind
-async function createClient(user) {
+async function createClient(user, plainPassword) {
   try {
-    const res = await client.post("/admin/clients", {
+    const payload = {
       brand_id: UPMIND_BRAND_ID,
       email: user.email,
-      firstname: user.firstName,
-      lastname: user.lastName,
-      phone: user.phone || undefined,
-      password: user.password || user.plainPassword,
-      // password: user.plainPassword,
-    });
+      password: plainPassword,
+    };
+    if (user.firstName) payload.firstname = user.firstName;
+    if (user.lastName) payload.lastname = user.lastName;
+    if (user.phone) payload.phone = user.phone;
+    if (user.username) payload.username = user.username;
+
+    if (user.address) {
+      payload.address = {
+        line1: user.address.line1,
+        line2: user.address.line2 || "",
+        city: user.address.city,
+        state: user.address.state,
+        postcode: user.address.postcode,
+        country: user.address.country,
+      };
+    }
+    const res = await client.post("/admin/clients", payload);
     return res.data;
   } catch (err) {
     console.error("Upmind createClient error:", err.response?.data || err.message);
@@ -44,7 +54,32 @@ async function getInvoices(clientId) {
   return res.data;
 }
 
-module.exports = { createClient, getOrders, getInvoices };
+async function ensureUpmindClient(user) {
+  if (user.upmindClientId) return user;
+
+  const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
+  if (!plainPassword) {
+    user.upmindRetryNeeded = true;
+    await user.save();
+    return user;
+  }
+
+  try {
+    const upmindRes = await createClient(user, plainPassword);
+    user.upmindClientId = upmindRes.id || upmindRes.data?.id;
+    user.encryptedPassword = undefined;
+    await user.save();
+  } catch (err) {
+    console.error("ensureUpmindClient failed:", err.response?.data || err.message);
+    user.upmindRetryNeeded = true;
+    await user.save();
+  }
+
+  return user;
+}
+
+
+module.exports = { createClient, getOrders, getInvoices, ensureUpmindClient };
 
 
 // const axios = require("axios");
