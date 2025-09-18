@@ -19,6 +19,7 @@ async function createClient(user, plainPassword) {
       brand_id: UPMIND_BRAND_ID,
       email: user.email,
       password: plainPassword,
+      
     };
     if (user.firstName) payload.firstname = user.firstName;
     if (user.lastName) payload.lastname = user.lastName;
@@ -35,6 +36,7 @@ async function createClient(user, plainPassword) {
         country: user.address.country,
       };
     }
+    console.log("Upmind client password used:", plainPassword);
     const res = await client.post("/admin/clients", payload);
     return res.data;
   } catch (err) {
