@@ -12,6 +12,7 @@ const { createClient, ensureUpmindClient } = require("../services/upmindService"
 const jwt = require('jsonwebtoken');
 const fs = require("fs");
 const jwkToPem = require("jwk-to-pem");
+const { log } = require('console');
 // const { importSPKI, exportJWK } = require("jose");
 
 
@@ -30,6 +31,8 @@ const register = async (req, res) => {
 
             // Normalize phone number with + accept by twilio to send code to whatsapp/number
             const storedPhone = normalizePhone(phone); // DB: digits only
+            console.log("registering pgone", storedPhone);
+            
 
             // Check if username or email/phone already exists
             const [existingUser, existingUsername] = await Promise.all([
@@ -44,14 +47,21 @@ const register = async (req, res) => {
             if (existingUsername) {
                 return res.status(409).json({ error: 'Username is taken' });
             }
-            
+            /*
+            from here
             // Send PHONE OTP via Verify (no local OTP storage)
-            try {
-            await sendOtpToPhone(storedPhone);
-            } catch (err) {
-            console.error('Twilio Verify Error:', err.message || err);
-            return res.status(500).json({ error: 'Failed to send OTP. Check phone number or try again later.' });
-            }
+
+            //   // i comment this because trial balance is exhausted.
+            // try {
+
+            // // await sendOtpToPhone(storedPhone);
+            
+            // } catch (err) {
+            // console.error('Twilio Verify Error:', err.message || err);
+            // return res.status(500).json({ error: 'Failed to send OTP. Check phone number or try again later.' });
+            // }
+            to here
+            */
 
             //  Encrypt password before saving
             const encryptedPassword = encrypt(password);
@@ -65,6 +75,26 @@ const register = async (req, res) => {
             phone: storedPhone,
             encryptedPassword, //  temporary storage
             });
+
+            // so im using this temporarilly for testing purpose
+            try {
+      // (Commented out: Twilio for now)
+      // await sendOtpToPhone(storedPhone);
+
+      // Use email OTP for testing
+      const otp = generateOtp();
+      await sendOtpToEmail(email, otp);
+
+      // Save OTP hash + expiry
+      RegUser.userotp = await bcrypt.hash(otp, 10);
+      RegUser.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+    } catch (err) {
+      console.error("OTP Error:", err.message || err);
+      return res.status(500).json({
+        error: "Failed to send OTP. Please try again later.",
+      });
+    }
+
 
             await RegUser.save();
 
@@ -162,25 +192,6 @@ const verifyOtp = async (req, res) => {
             // Ensure Upmind client exists
             user = await ensureUpmindClient(user)
 
-        //     if (!user.upmindClientId) {
-        //     try {
-        //       const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
-
-        //       if (plainPassword) {
-        //         const upmindRes = await createClient(user, plainPassword);
-        //         user.upmindClientId = upmindRes.id || upmindRes.data?.id;
-        //         user.encryptedPassword = undefined; //  clear after use
-        //       } else {
-        //         console.warn("No password found for user, skipping Upmind client creation");
-        //     }
-        //     } catch (err) {
-        //       console.error("Failed to create Upmind client:", err.response?.data || err.message);
-        //       // Not fatal – user can still be verified even if Upmind failed
-        //       user.upmindRetryNeeded = true; // mark for later retry
-        //     }
-        // }
-        // await user.save();
-
 
         // Create session + tokens
             const { accessToken, sid } = await createSessionAndSetCookies(user, req, res);
@@ -235,27 +246,6 @@ const verifyOtp = async (req, res) => {
             
              // Create Upmind client only if not already created
              user = await ensureUpmindClient(user)
-
-
-            // if (!user.upmindClientId) {
-            //     try {
-            //       const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : undefined;
-                   
-
-            //       if (plainPassword) {
-            //         const upmindRes = await createClient(user, plainPassword);
-            //         user.upmindClientId = upmindRes.id || upmindRes.data?.id;
-            //         user.encryptedPassword = undefined; //  clear after use
-            //       } else {
-            //         console.warn("No encrypted password found, cannot create Upmind client yet");
-            //       }
-            //     } catch (err) {
-            //     console.error("Failed to create Upmind client:", err.response?.data || err.message);
-            //     // Not fatal – user can still be verified even if Upmind failed
-            //     user.upmindRetryNeeded = true; // mark for later retry
-            //     }
-            // }
-            // await user.save();
     
             const { accessToken, sid } = await createSessionAndSetCookies(user, req, res);
             return res.status(200).json({
