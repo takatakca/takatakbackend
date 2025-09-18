@@ -21,23 +21,12 @@ async function createClient(user, plainPassword) {
       email: user.email,
       password: plainPassword,
       login_enabled: true,
+      firstname: user.firstName || "",
+      lastname: user.lastName || "",
+      phone: user.phone || "",
       
     };
-    if (user.firstName) payload.firstname = user.firstName;
-    if (user.lastName) payload.lastname = user.lastName;
-    if (user.phone) payload.phone = user.phone;
-    if (user.username) payload.username = user.username;
 
-    if (user.address) {
-      payload.address = {
-        line1: user.address.line1,
-        line2: user.address.line2 || "",
-        city: user.address.city,
-        state: user.address.state,
-        postcode: user.address.postcode,
-        country: user.address.country,
-      };
-    }
     console.log("Upmind client password used:", plainPassword);
     const res = await client.post("/admin/clients", payload);
     return res.data;
