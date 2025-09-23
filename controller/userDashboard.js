@@ -1,6 +1,9 @@
 const User = require("../models/User");
-const { getOrders, getInvoices } = require("../services/upmindService");
+const { getOrders, getInvoices, getTickets  } = require("../services/upmindService");
 
+/**
+ * Get client dashboard
+ */
  const getUserDashboard = async (req, res) => {
   try {
     // Exclude password & refreshToken when fetching the user
@@ -10,21 +13,27 @@ const { getOrders, getInvoices } = require("../services/upmindService");
     }
     let orders = [];
     let invoices = [];
+    let tickets = [];
 
-    // if (!user.upmindClientId) {
-    //   return res.json({ orders: [], invoices: [], activity: [] });
-    // }
 
     if (user.upmindClientId) {
       try {
         // Fetch orders (domains, hosting, etc)
         orders = await getOrders(user.upmindClientId);
-        invoices = await getInvoices(user.upmindClientId); // optional if you implement it
+        invoices = await getInvoices(user.upmindClientId);
+        tickets = await getTickets(user.upmindClientId);
       } catch (err) {
         console.error("Upmind API error:", err.response?.data || err.message);
          // Still respond with user data, but empty orders/invoices
       }
     }
+
+    const summary = {
+      totalOrders: orders.length,
+      totalInvoices: invoices.length,
+      unpaidInvoices: invoices.filter(i => i.status === "unpaid").length,
+      activeTickets: tickets.filter(t => t.status === "open").length,
+    };
 
 
     // You can also store + fetch your own "activity logs" here
@@ -41,9 +50,11 @@ const { getOrders, getInvoices } = require("../services/upmindService");
         name: `${user.firstName} ${user.lastName}`,
         upmindClientId: user.upmindClientId || null,
       },
-      orders,
+      summary,
+      activeProducts: orders.filter(o => o.status === "active").map(o => o.domain || o.product),
       invoices,
-      activity,
+      tickets,
+      activity
     });
   } catch (err) {
     console.error(err.response?.data || err.message);
@@ -52,26 +63,3 @@ const { getOrders, getInvoices } = require("../services/upmindService");
 };
 
 module.exports = {getUserDashboard}
-
-
-// const User = require("../models/User");
-
-// const getUserDashboard = async(req, res)=>{
-//     try {
-//         const userId = req.user._id;
-//         const user = await User.findById(userId).select('-password');
-//         if (!user){
-//             return res.status(404).json({message: 'User not found'});
-//         }
-//         return res.status(200).json({
-//             status: true,
-//             message: "User dashboard fetched successfully",
-//             data: user
-//         });
-//     } catch (error) {
-//         console.error("Error fetching user dashboard", error);
-//         return res.status(500).json({ error: "Internal server error"})
-//     }
-// }
-
-// module.exports = {getUserDashboard}
