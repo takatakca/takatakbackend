@@ -13,12 +13,13 @@ const sendOtpToEmail = async (email, otp) => {
 
   try {
     const accessToken = await oAuth2Client.getAccessToken();
+     console.log("Access token received:", accessToken?.token);
 
     const mailTransporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         type: "OAuth2",
-        user: process.env.EMAIL_USER,       // your Gmail address
+        user: process.env.EMAIL_USER,
         clientId: CLIENT_ID,
         clientSecret: CLIENT_SECRET,
         refreshToken: REFRESH_TOKEN,
@@ -31,13 +32,22 @@ const sendOtpToEmail = async (email, otp) => {
       to: email,
       subject: 'OTP from Takatak platform',
       text: `Your OTP is: ${otp}. It will expire in 5 minutes.\n \nDon't share this code with anyone;\n Our employees will never ask for this code`
-    //   subject: "OTP from Takatak platform",
-    //   text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
     });
+     console.log("Mail sent successfully");
 
-    console.log("✅ OTP email sent to:", email);
+
+     console.log("ENV check:", {
+  EMAIL_USER: process.env.EMAIL_USER,
+  CLIENT_ID: !!process.env.GMAIL_CLIENT_ID,
+  CLIENT_SECRET: !!process.env.GMAIL_CLIENT_SECRET,
+  REFRESH_TOKEN: !!process.env.GMAIL_REFRESH_TOKEN,
+});
+
+
   } catch (err) {
-    console.error("❌ Error sending OTP email:", err.message);
+    console.error("Full error:", err);
+
+    // console.error("Error sending OTP email:", err.message);
     throw err;
   }
 };
