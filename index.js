@@ -7,6 +7,11 @@ const env = require("dotenv");
 env.config()
 const app = express();
 
+// ======================================
+//  Gmail token keep-alive system to keep the refresh token active
+// ======================================
+require("./utils/tokenKeepAlive")
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
