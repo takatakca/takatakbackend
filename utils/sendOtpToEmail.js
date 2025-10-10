@@ -42,7 +42,7 @@ const sendOtpToEmail = async (email, otp) => {
       requestBody: { raw: rawMessage },
     });
 
-    console.log("Mail sent, message ID:", res.data.id);
+    // console.log("Mail sent, message ID:", res.data.id);
   } catch (err) {
     console.error("Error sending OTP email via Gmail API:", err);
     throw err;
