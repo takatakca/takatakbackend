@@ -4,6 +4,7 @@ const { getUserDashboard } = require('../controller/userDashboard');
 const { refreshTokenHandler } = require('../controller/refreshController');
 const { logoutHandler } = require('../controller/logoutController');
 const authMiddleware = require('../middleware/authMiddleware');
+const verifyApiKey = require('../middleware/verifyApiKey');
 
 
 const router = express.Router();
@@ -14,8 +15,8 @@ const router = express.Router();
  * ======================
  */
 
-router.post('/auth/register', register);
-router.post('/auth/login', login);
+router.post('/auth/register', verifyApiKey, register);
+router.post('/auth/login', verifyApiKey, login);
 router.post('/auth/verify-otp', verifyOtp);
 router.post('/auth/resend-code', requestNewCode);
 router.get('/auth/well-known/jwks.json', getJwks);
