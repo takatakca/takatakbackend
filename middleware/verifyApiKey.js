@@ -2,14 +2,17 @@ require("dotenv").config();
 
 const allowedOrigins = [
   "http://localhost:3000",          // Local frontend
-  "https://takatak.ca/" // Production frontend
+  "https://takatak.ca" // Production frontend
 ];
 
 const verifyApiKey = (req, res, next) => {
   const origin = req.headers.origin;
   const clientKey = req.headers["x-api-key"];
 
-  if (allowedOrigins.includes(origin)) {
+  // if (allowedOrigins.includes(origin)) {
+  //   return next();
+  // }
+  if (allowedOrigins.some(o => origin && origin.startsWith(o))) {
     return next();
   }
 
