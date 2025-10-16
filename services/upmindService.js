@@ -98,20 +98,59 @@ async function getTickets(clientId) {
   }
 }
 
-/**
- * Ensure a user has a matching Upmind client
- */
+// /**
+//  * Ensure a user has a matching Upmind client
+//  */
+// async function ensureUpmindClient(user) {
+//   if (user.upmindClientId) return user;
+
+//   const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
+//   if (!plainPassword) {
+//     user.upmindRetryNeeded = true;
+//     await user.save();
+//     return user;
+//   }
+
+//   try {
+//     const upmindRes = await createClient(user, plainPassword);
+//     user.upmindClientId = upmindRes.id || upmindRes.data?.id;
+//     user.encryptedPassword = undefined;
+//     await user.save();
+//   } catch (err) {
+//     console.error("ensureUpmindClient failed:", err.response?.data || err.message);
+//     user.upmindRetryNeeded = true;
+//     await user.save();
+//   }
+
+//   return user;
+// }
+
+
 async function ensureUpmindClient(user) {
   if (user.upmindClientId) return user;
 
-  const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
-  if (!plainPassword) {
-    user.upmindRetryNeeded = true;
-    await user.save();
-    return user;
-  }
-
   try {
+    // Step 1: Try to find user in Upmind by email or phone
+    const res = await client.get(`/admin/clients`, {
+      params: { search: user.email || user.phone },
+    });
+
+    const existing = res.data?.data?.[0];
+    if (existing) {
+      // Found existing Upmind client
+      user.upmindClientId = existing.id;
+      await user.save();
+      return user;
+    }
+
+    // Step 2: If not found, create new Upmind client
+    const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
+    if (!plainPassword) {
+      user.upmindRetryNeeded = true;
+      await user.save();
+      return user;
+    }
+
     const upmindRes = await createClient(user, plainPassword);
     user.upmindClientId = upmindRes.id || upmindRes.data?.id;
     user.encryptedPassword = undefined;
@@ -124,6 +163,7 @@ async function ensureUpmindClient(user) {
 
   return user;
 }
+
 
 
 module.exports = { createClient, getOrders, getInvoices, getTickets, ensureUpmindClient };
