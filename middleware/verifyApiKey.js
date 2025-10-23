@@ -2,11 +2,17 @@ require("dotenv").config();
 
 const allowedOrigins = [
   "http://localhost:3000",          // Local frontend
-  "https://takatak.ca" // Production frontend
+  "http://localhost:3001",       //local backend
+  "https://takatak.ca",        // Production frontend
+  "https://www.takatak.ca"
 ];
 
 const verifyApiKey = (req, res, next) => {
   const origin = req.headers.origin;
+  if (!origin) {
+    console.log("Bypassing API key check (no origin header)");
+    return next();
+  }
   const clientKey = req.headers["x-api-key"];
 
   // if (allowedOrigins.includes(origin)) {
