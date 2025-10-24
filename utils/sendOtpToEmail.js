@@ -1,6 +1,5 @@
 
 const sgMail = require('@sendgrid/mail');
-// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
@@ -19,10 +18,18 @@ Our employees will never ask for this code.`,
 
   try {
     await sgMail.send(msg);
-    console.log(`OTP email sent to ${email}`);
+    // console.log(`OTP email sent to ${email}`);
   } catch (error) {
-    console.error('Error sending OTP email:', error.response?.body || error);
-    throw new Error('Failed to send OTP email');
+   console.error("SendGrid Email Error:");
+    if (error.response) {
+      console.error("Status Code:", error.code || error.response.statusCode);
+      console.error("Response Body:", error.response.body);
+      console.error("Headers:", error.response.headers);
+    } else {
+      console.error("Error Message:", error.message);
+      console.error("Full Error Object:", error);
+    }
+    throw new Error("Failed to send OTP email (SendGrid error)");
   }
 };
 
