@@ -8,7 +8,7 @@ const sendOtpToEmail = async (email, otp) => {
 
   const msg = {
     to: email,
-    from:`"Takatak Team" <${process.env.SENDER_EMAIL}>`,
+    from:`Takatak Team <${process.env.SENDER_EMAIL}>`,
     subject: 'OTP from Takatak Platform',
     text: `Your OTP is: ${otp}. It will expire in 5 minutes.
     
