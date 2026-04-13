@@ -117,6 +117,14 @@ const login = async (req, res) => {
     const { phone, email } = req.body;
   
     try {
+
+      console.log("EMAIL:", email);
+
+const user = await Users.findOne({ email });
+
+console.log("USER FOUND:", user);
+
+
       if (phone) {
         const user = await Users.findOne({ phone: normalizePhone(phone) });
         if (!user) return res.status(401).json({ error: "Phone number not found" });
