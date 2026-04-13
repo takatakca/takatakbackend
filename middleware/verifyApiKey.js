@@ -23,7 +23,11 @@ const verifyApiKey = (req, res, next) => {
   }
 
   if (!clientKey || clientKey !== process.env.TAKATAK_API_KEY) {
-    return res.status(403).json({ message: "Forbidden: Invalid API key" });
+    console.error("Invalid API key:", {
+      origin: req.headers.origin,
+      key: req.headers["x-api-key"]
+    });
+    return res.status(403).json({ message: "Access denied. Please try again or contact support." });
   }
 
   next();
