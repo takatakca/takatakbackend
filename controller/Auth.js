@@ -116,14 +116,12 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     const { phone, email } = req.body;
   
+    console.log("EMAIL:", email);
+    const user = await Users.findOne({ email });
+    console.log("USER FOUND:", user);
+
+
     try {
-
-      console.log("EMAIL:", email);
-
-const user = await Users.findOne({ email });
-
-console.log("USER FOUND:", user);
-
 
       if (phone) {
         const user = await Users.findOne({ phone: normalizePhone(phone) });
