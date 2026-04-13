@@ -122,8 +122,8 @@ const login = async (req, res) => {
         const user = await Users.findOne({ phone: normalizePhone(phone) });
         if (!user) return res.status(401).json({ error: "Phone number not found" });
   
-        console.log("EMAIL:", email);
-        console.log("USER FOUND:", user);
+        // console.log("EMAIL:", email);
+        // console.log("USER FOUND:", user);
 
         await sendOtpToPhone(user.phone);
         user.lastOtpRequestedAt = Date.now();
@@ -136,8 +136,8 @@ const login = async (req, res) => {
         const user = await Users.findOne({ email });
         if (!user) return res.status(401).json({ error: "Email address not found" });
   
-        console.log("EMAIL:", email);
-        console.log("USER FOUND:", user);
+        // console.log("EMAIL:", email);
+        // console.log("USER FOUND:", user);
 
         const otp = generateOtp();
         await sendOtpToEmail(user.email, otp);
