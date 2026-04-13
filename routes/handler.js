@@ -15,8 +15,10 @@ const router = express.Router();
  * ======================
  */
 
-router.post('/auth/register', verifyApiKey, register);
-router.post('/auth/login', verifyApiKey, login);
+router.post('/auth/register', register);
+// router.post('/auth/register', verifyApiKey, register);
+router.post('/auth/login', login);
+// router.post('/auth/login', verifyApiKey, login);
 router.post('/auth/verify-otp', verifyOtp);
 router.post('/auth/resend-code', requestNewCode);
 router.get('/auth/well-known/jwks.json', getJwks);
