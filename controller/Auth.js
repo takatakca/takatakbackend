@@ -6,7 +6,6 @@ const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
 const { encrypt, decrypt } = require("../utils/crypto");
 const bcrypt = require("bcrypt");
-const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const { createSessionAndSetCookies } = require("./authSession")
 const { createClient, ensureUpmindClient } = require("../services/upmindService");
 const jwt = require('jsonwebtoken');
