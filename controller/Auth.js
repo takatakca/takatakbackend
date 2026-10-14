@@ -29,8 +29,7 @@ const register = async (req, res) => {
             }
 
             // Normalize phone number with + accept by twilio to send code to whatsapp/number
-            const storedPhone = normalizePhone(phone); // DB: digits only
-            console.log("registering pgone", storedPhone);
+            const storedPhone = normalizePhone(phone); // Store E.164; never log sensitive phone numbers.
             
 
             // Check if username or email/phone already exists
@@ -103,7 +102,10 @@ const register = async (req, res) => {
             });
 
         } catch (error) {
-            console.error('Registration Error:', error.response?.data || error);
+            if (error?.code === 'INVALID_PHONE_NUMBER') {
+                return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
+            }
+            console.error('Registration Error:', error.response?.status || error.message);
             return res.status(500).json({ error: 'Something went wrong. Please try again later.' });
         }
 };
@@ -151,7 +153,10 @@ const login = async (req, res) => {
   
       return res.status(400).json({ message: "Email or phone number is required" });
     } catch (error) {
-      console.error("Login Error:", error);
+      if (error?.code === 'INVALID_PHONE_NUMBER') {
+        return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
+      }
+      console.error("Login Error:", error.message);
       res.status(500).json({ error: "Internal server error" });
     }
   };
@@ -268,7 +273,10 @@ const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: 'Phone or email is required' });  
 
     } catch (error) {
-        console.error("verifyOtp error:", error);
+        if (error?.code === 'INVALID_PHONE_NUMBER') {
+            return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
+        }
+        console.error("verifyOtp error:", error.message);
         return res.status(500).json({ message: 'Something went wrong' });
     }
 
@@ -320,7 +328,10 @@ const requestNewCode = async (req, res) => {
   
       return res.status(400).json({ message: "Email or phone number is required" });
     } catch (error) {
-      console.error("Error resending code:", error);
+      if (error?.code === 'INVALID_PHONE_NUMBER') {
+        return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
+      }
+      console.error("Error resending code:", error.message);
       return res.status(500).json({ message: "Something went wrong. Try again later." });
     }
   };
