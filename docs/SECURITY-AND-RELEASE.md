@@ -53,5 +53,5 @@ Do not apply these commands blindly to other databases. Session refresh checks e
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
 - The current public RSA signing key and signing secret require a coordinated change.
 - The shared cross-product identity, tenant entitlements and canonical TAKATAK customer resolution are **not implemented by the legacy MongoDB service**; they belong to platform services.
-- The Upmind matching logic in `services/upmindService.js` selects a broad search result and should be made exact-match and tenant-aware before future self-service account linking.
+- Upmind now requires a single exact email **and configured brand ID** match before auto-linking a customer; cross-product tenancy and live Upmind response schema still need provider-backed verification. API failures must not be treated as confirmed zero orders.
 - The legacy Canadian phone flow still contains a hard-coded non-Canadian country prefix, to be removed as part of the Auth cutover or corrected before any continued use.
