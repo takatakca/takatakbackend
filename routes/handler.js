@@ -26,7 +26,7 @@ router.post('/auth/verify-otp', retiredLogin);
 router.post('/auth/resend-code', retiredLogin);
 router.get('/auth/well-known/jwks.json', getJwks);
 
-router.post('/auth/refresh', authMiddleware, refreshTokenHandler);
+router.post('/auth/refresh', refreshTokenHandler);
 router.post('/auth/logout', authMiddleware,  logoutHandler);
 
 

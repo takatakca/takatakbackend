@@ -1,36 +1,20 @@
-require("dotenv").config();
+"use strict";
+const crypto = require("node:crypto");
 
-const allowedOrigins = [
-  "http://localhost:3000",          // Local frontend
-  "http://localhost:3001",       //local backend
-  "https://takatak.ca",        // Production frontend
-  "https://www.takatak.ca"
-];
-
-const verifyApiKey = (req, res, next) => {
-  const origin = req.headers.origin;
-  if (!origin) {
-    console.log("Bypassing API key check (no origin header)");
-    return next();
+// Server-to-server API keys must not depend on the spoofable Origin header.
+function verifyApiKey(req, res, next) {
+  const secret = process.env.TAKATAK_API_KEY;
+  const supplied = req.headers["x-api-key"];
+  if (typeof secret !== "string" || !secret ||
+      typeof supplied !== "string" || !supplied) {
+    return res.status(403).json({ error: "Access denied" });
   }
-  const clientKey = req.headers["x-api-key"];
-
-  // if (allowedOrigins.includes(origin)) {
-  //   return next();
-  // }
-  if (allowedOrigins.some(o => origin && origin.startsWith(o))) {
-    return next();
+  const received = Buffer.from(supplied, "utf8");
+  const expected = Buffer.from(secret, "utf8");
+  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
+    return res.status(403).json({ error: "Access denied" });
   }
-
-  if (!clientKey || clientKey !== process.env.TAKATAK_API_KEY) {
-    console.error("Invalid API key:", {
-      origin: req.headers.origin,
-      key: req.headers["x-api-key"]
-    });
-    return res.status(403).json({ message: "Access denied. Please try again or contact support." });
-  }
-
   next();
-};
+}
 
 module.exports = verifyApiKey;

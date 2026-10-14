@@ -1,17 +1,27 @@
+"use strict";
 const Session = require("../models/Session");
 
 async function logoutHandler(req, res) {
   try {
-    const sid = req.cookies?.sid || req.body.sid;
-    if (sid) {
-      await Session.findByIdAndDelete(sid);
+    // Trust only the verified JWT: never delete the SID supplied by another client.
+    const { id, sid } = req.user || {};
+    if (!id || !sid) {
+      return res.status(401).json({ error: "Invalid session" });
     }
-    res.clearCookie("sid");
-    res.clearCookie("refresh_token");
+    await Session.deleteOne({ _id: sid, userId: id });
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    };
+    res.clearCookie("sid", options);
+    res.clearCookie("refresh_token", options);
+    res.set("Cache-Control", "no-store");
     return res.json({ ok: true });
   } catch (err) {
-    console.error("logout error", err);
-    return res.status(500).json({ error: "Internal error" });
+    console.error("Logout failed:", err.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
