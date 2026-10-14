@@ -40,3 +40,5 @@ jobs:
           node --check utils/generateOtp.js
           node --check scripts/check-release-readiness.js
           node --check scripts/audit-session-ttl.js
+          node --check utils/emailOtpAttempts.js
+          node --check utils/releaseRevision.js
