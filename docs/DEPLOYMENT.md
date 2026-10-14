@@ -46,6 +46,10 @@ npm start
 ## Rollback
 Find last known healthy *deployed* SHA in provider history and revert/redeploy using the deployment platform's supported safe procedure; do not force-push GitHub main. Verify MongoDB schema and TTL rollback compatibility, JWT verifier/key overlap and consumer migration before reverting authentication. Keep secrets outside Git.
 
+## Legacy Upmind smoke test after release
+
+With a controlled test identity already associated with Upmind, exercise both email and phone legacy OTP login (if still enabled), then confirm no additional Upmind customer was provisioned and the dashboard remains scoped to that owner's customer ID. The `upmindClientId` field is not returned by default Mongo queries: both verification flows explicitly load it before `ensureUpmindClient`. Check existing reversible temporary passwords are cleared from linked accounts without logging their contents. Do not use real customer credentials or mutate production records during the smoke test.
+
 ## Environment-specific blockers
 - No validated production service mapping.
 - Key rotation coordinated across JWT verifiers is still outstanding.
