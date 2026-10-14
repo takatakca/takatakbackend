@@ -63,6 +63,7 @@ role:{
     default: 'user'
 },
 upmindClientId: { type: String, default: null, select: false },
+upmindRetryNeeded: { type: Boolean, default: false, select: false },
 
 
 phoneVerified: { type: Boolean, default: false },
