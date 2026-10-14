@@ -20,6 +20,10 @@ _Last updated: 2026-10-14._
 | D-015 | Reject release configuration using known exposed signing keys or a mismatched RSA key pair. | Offline `npm run check:release` provides a fail-closed configuration gate; an actual provider deployment and online health still require verification. |
 | D-016 | Audit production session TTL indexes in read-only mode before any manual migration. | `npm run audit:sessions` reports missing `expiresAt` TTL or obsolete `createdAt` TTL; changing indexes requires correct DB, backup and access authorization. |
 
+| D-017 | Verify refresh secret and sign the access JWT before the atomic database token rotation. | A guessed session ID must not reveal user state, and misconfigured keys must not invalidate otherwise valid refresh tokens. |
+| D-018 | Cap legacy email OTP checks at five attempts using atomic MongoDB updates; consume successful code once. | Prevent brute force/concurrent code reuse pending replacement by canonical TAKATAK Auth. |
+| D-019 | Report deployment revision only from validated 40-hex runtime SHA metadata. | `/health/version` must return null rather than falsely claiming a release; compare against provider deployment record. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
