@@ -36,3 +36,6 @@ jobs:
           node --check services/upmindService.js
           node --check utils/sendOtpToPhone.js
           node --check utils/sendOtpToEmail.js
+          node --check utils/phoneUtils.js
+          node --check utils/generateOtp.js
+          node --check scripts/check-release-readiness.js
