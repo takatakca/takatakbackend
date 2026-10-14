@@ -24,6 +24,9 @@ _Last updated: 2026-10-14._
 | D-018 | Cap legacy email OTP checks at five attempts using atomic MongoDB updates; consume successful code once. | Prevent brute force/concurrent code reuse pending replacement by canonical TAKATAK Auth. |
 | D-019 | Report deployment revision only from validated 40-hex runtime SHA metadata. | `/health/version` must return null rather than falsely claiming a release; compare against provider deployment record. |
 
+| D-020 | Load the current JWT public key for each JWKS request and cap its HTTP cache to 60 seconds. | Avoid indefinitely publishing a stale key after authorized secret rotation while allowing downstream verifiers a bounded cache. |
+| D-021 | Expired legacy email OTP cleanup must match the old code hash and expiry in an atomic update. | A stale expired-code request must never overwrite a newly issued verification code. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
