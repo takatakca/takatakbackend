@@ -3,6 +3,8 @@
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
+- 2026-10-14 | ChatGPT | main | active | Harden refresh rotation against invalid signing configuration, add authorization regression tests and deployment SHA health endpoint | run CI, update five handoff docs and retain production blockers
+
 - 2026-10-14 | ChatGPT | main | done (production access blocked) | Added read-only sessions TTL index auditor, unit tests, npm audit:sessions script and CI/docs checks | verify final CI SHA, then run against authorized production MongoDB; never migrate indexes without verified backup
 
 - 2026-10-14 | ChatGPT | main | done (production blocked) | Fixed E.164/+1 phone normalization, OTP HTTP 400/cooldown/persistence/CSPRNG, configurable JWT kid with JWKS test, and offline release preflight; added regression tests and deployment docs | check final matching-SHA CI; coordinate exposed key rotation #2, Auth PR #1, MongoDB TTL and verified production hosting before deploying
