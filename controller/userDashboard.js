@@ -18,7 +18,7 @@ async function getUserDashboard(req, res) {
     let orders = [];
     let invoices = [];
     let tickets = [];
-    let integrationsAvailable = true;
+    let integrationStatus = user.upmindClientId ? "available" : "not_linked";
     if (user.upmindClientId) {
       try {
         [orders, invoices, tickets] = await Promise.all([
@@ -27,16 +27,17 @@ async function getUserDashboard(req, res) {
           getTickets(user.upmindClientId),
         ]);
       } catch (err) {
-        integrationsAvailable = false;
+        integrationStatus = "unavailable";
         console.error("Upmind dashboard unavailable:", err.message);
       }
     }
 
+    const failed = integrationStatus === "unavailable";
     const summary = {
-      totalOrders: orders.length,
-      totalInvoices: invoices.length,
-      unpaidInvoices: invoices.filter(i => i.status === "unpaid").length,
-      activeTickets: tickets.filter(t => t.status === "open").length,
+      totalOrders: failed ? null : orders.length,
+      totalInvoices: failed ? null : invoices.length,
+      unpaidInvoices: failed ? null : invoices.filter(i => i.status === "unpaid").length,
+      activeTickets: failed ? null : tickets.filter(t => t.status === "open").length,
     };
 
     res.set("Cache-Control", "private, no-store");
@@ -51,7 +52,8 @@ async function getUserDashboard(req, res) {
       activeProducts: orders.filter(o => o.status === "active").map(o => o.domain || o.product),
       invoices,
       tickets,
-      integrationsAvailable,
+      integrationsAvailable: integrationStatus === "available",
+      integrationStatus,
       activity: [
         { action: "login", at: user.lastActionAt || null },
         { action: "registered", at: user.createdAt || null },
