@@ -16,6 +16,8 @@ Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKL
 - `GET /user/dashboard`: legacy authenticated user dashboard.
 - `GET /health/live`: process liveness (200 without database check).
 - `GET /health/ready`: readiness (200 with MongoDB connected; otherwise 503).
+- `GET /health/version`: exposes the runtime revision (`revision` is a GitHub SHA or `null` if unavailable); compare with actual hosting deployment history, not CI alone.
+- Legacy email OTP verification enforces at most five attempts per code and atomically consumes a successful code. These legacy routes still await the central TAKATAK Auth cutover.
 
 ## Local setup
 
