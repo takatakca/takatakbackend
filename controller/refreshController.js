@@ -2,6 +2,7 @@
 const fs = require("node:fs");
 const jwt = require("jsonwebtoken");
 const Session = require("../models/Session");
+const User = require("../models/User");
 const { getCredential } = require("../utils/requestCredentials");
 const { verifyTokenHash, randomToken, hashToken } = require("../utils/tokenHelpers");
 
@@ -37,6 +38,12 @@ async function refreshTokenHandler(req, res) {
       res.clearCookie("sid", cookieOptions);
       res.clearCookie("refresh_token", cookieOptions);
       return res.status(401).json({ error: "Session expired" });
+    }
+
+    // A still-valid refresh secret does not authorize a deleted or disabled account.
+    const user = await User.findById(session.userId).select("isVerified");
+    if (!user || !user.isVerified) {
+      return res.status(401).json({ error: "User not active" });
     }
 
     if (!(await verifyTokenHash(token, session.refreshHash))) {
