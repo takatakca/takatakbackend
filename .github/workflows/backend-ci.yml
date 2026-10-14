@@ -39,3 +39,4 @@ jobs:
           node --check utils/phoneUtils.js
           node --check utils/generateOtp.js
           node --check scripts/check-release-readiness.js
+          node --check scripts/audit-session-ttl.js
