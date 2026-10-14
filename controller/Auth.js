@@ -240,10 +240,22 @@ const verifyOtp = async (req, res) => {
             if (!pending) return res.status(400).json({ message: "Invalid or expired code" });
             if (!pending.userotp) return res.status(400).json({ message: "Invalid or expired code" });
             if (!pending.regTokenExpires || Date.now() >= new Date(pending.regTokenExpires).getTime()) {
-                pending.userotp = undefined;
-                pending.regTokenExpires = undefined;
-                pending.otpAttempts = 0;
-                await pending.save();
+                // Only clear this exact expired code, never a newer code created
+                // concurrently by the resend endpoint.
+                await Users.updateOne(
+                    {
+                        _id: pending._id,
+                        userotp: pending.userotp,
+                        $or: [
+                            { regTokenExpires: { $lte: new Date() } },
+                            { regTokenExpires: { $exists: false } },
+                        ],
+                    },
+                    {
+                        $unset: { userotp: 1, regTokenExpires: 1 },
+                        $set: { otpAttempts: 0 },
+                    }
+                );
                 return res.status(400).json({ message: "Invalid or expired code" });
             }
 
