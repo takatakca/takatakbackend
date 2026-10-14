@@ -7,6 +7,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const connectdb = require("./config/connectDb");
 const router = require("./routes/handler");
+const { getReleaseRevision } = require("./utils/releaseRevision");
 
 const app = express();
 app.disable("x-powered-by");
@@ -35,6 +36,12 @@ app.get("/health/live", (_req, res) => res.json({ status: "ok" }));
 app.get("/health/ready", (_req, res) => {
   const ready = mongoose.connection.readyState === 1;
   res.status(ready ? 200 : 503).json({ status: ready ? "ready" : "not_ready" });
+});
+
+// Deployment provenance. A missing SHA is reported as null, never fabricated.
+app.get("/health/version", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({ revision: getReleaseRevision() });
 });
 
 app.use("/", router);
