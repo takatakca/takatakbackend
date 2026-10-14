@@ -2,6 +2,10 @@
 
 This Express 5 / MongoDB service is an **existing legacy API**, not a new TAKATAK identity authority. The GROUPE TAKATAK ecosystem must use its canonical identity, tenant-scoped permissions and entitlements. Do not build a separate master customer directory in this service.
 
+## Project continuation
+
+Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKLOG.md) first, then the five maintained documents: [project status](docs/PROJECT_STATUS.md), [task queue](docs/TASK_QUEUE.md), [agent handoff](docs/AGENT_HANDOFF.md), [deployment](docs/DEPLOYMENT.md) and [architecture decisions](docs/DECISIONS.md). These documents track current GitHub SHA, blockers and the evidence needed for an actual release.
+
 ## Current API
 
 - `POST /auth/register`, `/auth/login`, `/auth/verify-otp`, `/auth/resend-code`: legacy endpoints, awaiting retirement in [PR #1](https://github.com/takatakca/takatakbackend/pull/1). Their continued availability is not approval for new consumers.
