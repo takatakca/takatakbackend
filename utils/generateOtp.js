@@ -1,6 +1,10 @@
+"use strict";
+const { randomInt } = require("node:crypto");
+
+// Cryptographically strong six-digit legacy email OTP. The old Math.random()
+// implementation was predictable enough to be unsuitable for authentication.
 function generateOtp() {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generates a 6-digit OTP
-    return otp;
-  }
+  return String(randomInt(100000, 1000000));
+}
 
 module.exports = generateOtp;
