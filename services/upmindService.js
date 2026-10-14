@@ -1,23 +1,51 @@
+"use strict";
 const axios = require("axios");
 const { decrypt } = require("../utils/crypto");
+
 const UP_API = "https://api.upmind.io/api";
 const ADMIN_TOKEN = process.env.UPMIND_KEY;
-const UPMIND_BRAND_ID = process.env.UPMIND_BRAND_ID; 
-
+const UPMIND_BRAND_ID = process.env.UPMIND_BRAND_ID;
 const client = axios.create({
   baseURL: UP_API,
+  timeout: 10000,
   headers: {
     Authorization: `Bearer ${ADMIN_TOKEN}`,
     "Content-Type": "application/json",
   },
 });
 
-/**
- * Create a client in Upmind
- */
+function requireUpmindSettings() {
+  if (!ADMIN_TOKEN || !UPMIND_BRAND_ID) {
+    throw new Error("Upmind integration is not configured");
+  }
+}
+
+// A search response can be fuzzy or incomplete: never link a wrong customer.
+function findExactClientMatch(candidates, email, brandId) {
+  if (!Array.isArray(candidates) || !email || !brandId) return null;
+  const expectedEmail = String(email).trim().toLowerCase();
+  const expectedBrand = String(brandId);
+  const matches = candidates.filter(record =>
+    record && record.id !== undefined &&
+    String(record.email || "").trim().toLowerCase() === expectedEmail &&
+    String(record.brand_id ?? record.brand?.id ?? "") === expectedBrand
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function validClientId(clientId) {
+  const value = String(clientId || "");
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    throw new Error("Invalid Upmind client ID");
+  }
+  return value;
+}
+
 async function createClient(user, plainPassword) {
+  requireUpmindSettings();
+  if (!plainPassword) throw new Error("Cannot provision Upmind without verified credentials");
   try {
-    const payload = {
+    const res = await client.post("/admin/clients", {
       brand_id: UPMIND_BRAND_ID,
       email: user.email,
       password: plainPassword,
@@ -25,46 +53,38 @@ async function createClient(user, plainPassword) {
       firstname: user.firstName || "",
       lastname: user.lastName || "",
       phone: user.phone || "",
-      
-    };
-
-    const res = await client.post("/admin/clients", payload);
+    });
     return res.data;
   } catch (err) {
-    console.error("Upmind createClient error:", err.response?.data || err.message);
+    console.error("Upmind client creation failed:", err.response?.status || err.code || err.message);
     throw new Error("Failed to create Upmind client");
   }
 }
 
-/**
- * Fetch and normalize orders
- */
 async function getOrders(clientId) {
+  requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${clientId}/orders`);
-    return res.data?.data?.map(order => ({
+    const res = await client.get(`/admin/clients/${validClientId(clientId)}/orders`);
+    return (res.data?.data || []).map(order => ({
       id: order.id,
       product: order.product?.name || "Unknown product",
       domain: order.domain?.name || null,
       status: order.status,
       createdAt: order.created_at,
       nextDue: order.next_due_date,
-    })) || [];
+    }));
   } catch (err) {
-    console.error("Upmind getOrders error:", err.response?.data || err.message);
-    return [];
+    // Do not turn transport errors into misleading empty account data.
+    console.error("Upmind orders unavailable:", err.response?.status || err.code || err.message);
+    throw new Error("Upmind orders unavailable");
   }
-
 }
 
-/**
- * Fetch and normalize invoices
- */
-
 async function getInvoices(clientId) {
+  requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${clientId}/invoices`);
-     return res.data?.data?.map(inv => ({
+    const res = await client.get(`/admin/clients/${validClientId(clientId)}/invoices`);
+    return (res.data?.data || []).map(inv => ({
       id: inv.id,
       number: inv.number,
       status: inv.status,
@@ -72,110 +92,74 @@ async function getInvoices(clientId) {
       issuedAt: inv.issued_at,
       dueAt: inv.due_at,
       items: inv.items?.map(i => i.description) || [],
-    })) || [];
+    }));
   } catch (err) {
-    console.error("Upmind getInvoices error:", err.response?.data || err.message);
-    return [];
+    console.error("Upmind invoices unavailable:", err.response?.status || err.code || err.message);
+    throw new Error("Upmind invoices unavailable");
   }
-
 }
 
-/**
- * Fetch and normalize tickets
- */
 async function getTickets(clientId) {
+  requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${clientId}/tickets`);
-    return res.data?.data?.map(ticket => ({
+    const res = await client.get(`/admin/clients/${validClientId(clientId)}/tickets`);
+    return (res.data?.data || []).map(ticket => ({
       id: ticket.id,
       subject: ticket.subject,
       status: ticket.status,
       lastReplyAt: ticket.last_reply_at,
-    })) || [];
+    }));
   } catch (err) {
-    console.error("Upmind getTickets error:", err.response?.data || err.message);
-    return [];
+    console.error("Upmind tickets unavailable:", err.response?.status || err.code || err.message);
+    throw new Error("Upmind tickets unavailable");
   }
 }
-
-// /**
-//  * Ensure a user has a matching Upmind client
-//  */
-// async function ensureUpmindClient(user) {
-//   if (user.upmindClientId) return user;
-
-//   const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
-//   if (!plainPassword) {
-//     user.upmindRetryNeeded = true;
-//     await user.save();
-//     return user;
-//   }
-
-//   try {
-//     const upmindRes = await createClient(user, plainPassword);
-//     user.upmindClientId = upmindRes.id || upmindRes.data?.id;
-//     user.encryptedPassword = undefined;
-//     await user.save();
-//   } catch (err) {
-//     console.error("ensureUpmindClient failed:", err.response?.data || err.message);
-//     user.upmindRetryNeeded = true;
-//     await user.save();
-//   }
-
-//   return user;
-// }
-
 
 async function ensureUpmindClient(user) {
   if (user.upmindClientId) return user;
-
   try {
-    // Step 1: Try to find user in Upmind by email or phone
-    const res = await client.get(`/admin/clients`, {
+    requireUpmindSettings();
+    const res = await client.get("/admin/clients", {
       params: { search: user.email || user.phone, brand_id: UPMIND_BRAND_ID },
     });
 
-    // Search results may be fuzzy. Never attach a customer to the first hit.
     const candidates = Array.isArray(res.data?.data) ? res.data.data : [];
-    const email = String(user.email || "").trim().toLowerCase();
-    const existing = candidates.find(candidate =>
-      email &&
-      String(candidate.email || "").trim().toLowerCase() === email &&
-      (!candidate.brand_id || String(candidate.brand_id) === String(UPMIND_BRAND_ID))
-    );
-    if (existing) {
-      user.upmindClientId = existing.id;
+    const matched = findExactClientMatch(candidates, user.email, UPMIND_BRAND_ID);
+    if (matched) {
+      user.upmindClientId = String(matched.id);
+      user.upmindRetryNeeded = false;
       await user.save();
       return user;
     }
-    if (candidates.length > 0) {
-      // Ambiguous or unrelated records: manual review, never attach or duplicate.
+    if (candidates.length) {
+      // Search results might contain other people or brands; do not attach or
+      // provision duplicate customers while identity is ambiguous.
       user.upmindRetryNeeded = true;
       await user.save();
       return user;
     }
 
-    // Step 2: If not found, create new Upmind client
-    const plainPassword = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
-    if (!plainPassword) {
+    const password = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
+    if (!password) {
       user.upmindRetryNeeded = true;
       await user.save();
       return user;
     }
-
-    const upmindRes = await createClient(user, plainPassword);
-    user.upmindClientId = upmindRes.id || upmindRes.data?.id;
+    const created = await createClient(user, password);
+    const newId = created.id || created.data?.id;
+    if (!newId) throw new Error("Upmind returned no client ID");
+    user.upmindClientId = String(newId);
     user.encryptedPassword = undefined;
+    user.upmindRetryNeeded = false;
     await user.save();
   } catch (err) {
-    console.error("ensureUpmindClient failed:", err.response?.data || err.message);
+    console.error("Upmind association pending review:", err.message);
     user.upmindRetryNeeded = true;
     await user.save();
   }
-
   return user;
 }
 
-
-
-module.exports = { createClient, getOrders, getInvoices, getTickets, ensureUpmindClient };
+module.exports = {
+  createClient, getOrders, getInvoices, getTickets, ensureUpmindClient, findExactClientMatch,
+};
