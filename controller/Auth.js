@@ -377,7 +377,7 @@ const getJwks = async(req, res) => {
         const jwk = await exportJWK(keyObj);
 
         jwk.use = "sig";
-        jwk.kid = "takatak-key"; // Key ID
+        jwk.kid = process.env.JWT_KEY_ID || "takatak-key"; // Must match JWT signing kid
         jwk.alg = "RS256";
 
         res.json({ keys: [jwk] });
