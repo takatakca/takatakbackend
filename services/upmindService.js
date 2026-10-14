@@ -132,13 +132,25 @@ async function ensureUpmindClient(user) {
   try {
     // Step 1: Try to find user in Upmind by email or phone
     const res = await client.get(`/admin/clients`, {
-      params: { search: user.email || user.phone },
+      params: { search: user.email || user.phone, brand_id: UPMIND_BRAND_ID },
     });
 
-    const existing = res.data?.data?.[0];
+    // Search results may be fuzzy. Never attach a customer to the first hit.
+    const candidates = Array.isArray(res.data?.data) ? res.data.data : [];
+    const email = String(user.email || "").trim().toLowerCase();
+    const existing = candidates.find(candidate =>
+      email &&
+      String(candidate.email || "").trim().toLowerCase() === email &&
+      (!candidate.brand_id || String(candidate.brand_id) === String(UPMIND_BRAND_ID))
+    );
     if (existing) {
-      // Found existing Upmind client
       user.upmindClientId = existing.id;
+      await user.save();
+      return user;
+    }
+    if (candidates.length > 0) {
+      // Ambiguous or unrelated records: manual review, never attach or duplicate.
+      user.upmindRetryNeeded = true;
       await user.save();
       return user;
     }
