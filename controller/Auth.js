@@ -200,6 +200,8 @@ const verifyOtp = async (req, res) => {
             user.lastActionAt = new Date();
             user.activity.push({ action: user.lastAction, at: user.lastActionAt });
 
+            // Verification must be durable even when Upmind association already exists.
+            await user.save();
             // Ensure Upmind client exists
             user = await ensureUpmindClient(user)
 
@@ -229,7 +231,7 @@ const verifyOtp = async (req, res) => {
             if (!user.userotp) return res.status(400).json({ message: 'OTP not requested' });
             // user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
 
-            if (Date.now() > user.regTokenExpires) {
+            if (!user.regTokenExpires || Date.now() > new Date(user.regTokenExpires).getTime()) {
               // expired — clear OTP immediately
                 user.userotp = undefined;
                 user.regTokenExpires = undefined;
@@ -255,6 +257,8 @@ const verifyOtp = async (req, res) => {
             user.lastActionAt = new Date();
             user.activity.push({ action: user.lastAction, at: user.lastActionAt });
             
+             // Save OTP removal and verification before any optional Upmind sync.
+             await user.save();
              // Create Upmind client only if not already created
              user = await ensureUpmindClient(user)
     
