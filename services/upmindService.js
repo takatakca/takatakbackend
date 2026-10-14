@@ -116,7 +116,15 @@ async function getTickets(clientId) {
 }
 
 async function ensureUpmindClient(user) {
-  if (user.upmindClientId) return user;
+  if (user.upmindClientId) {
+    // If a legacy sign-in loaded the temporary Upmind password, clear it
+    // once the existing association has already been established.
+    if (user.encryptedPassword) {
+      user.encryptedPassword = undefined;
+      await user.save();
+    }
+    return user;
+  }
   try {
     requireUpmindSettings();
     const res = await client.get("/admin/clients", {
@@ -128,6 +136,9 @@ async function ensureUpmindClient(user) {
     if (matched) {
       user.upmindClientId = String(matched.id);
       user.upmindRetryNeeded = false;
+      // The account can use its existing Upmind association; keeping a
+      // reversible login password is no longer necessary.
+      user.encryptedPassword = undefined;
       await user.save();
       return user;
     }
