@@ -122,6 +122,9 @@ const login = async (req, res) => {
       if (phone) {
         const user = await Users.findOne({ phone: normalizePhone(phone) });
         if (!user) return res.status(401).json({ error: "Phone number not found" });
+        if (user.lastOtpRequestedAt && Date.now() - new Date(user.lastOtpRequestedAt).getTime() < 30_000) {
+          return res.status(429).json({ error: "Please wait before requesting another verification code." });
+        }
   
         // console.log("EMAIL:", email);
         // console.log("USER FOUND:", user);
@@ -136,6 +139,9 @@ const login = async (req, res) => {
       if (email) {
         const user = await Users.findOne({ email });
         if (!user) return res.status(401).json({ error: "Email address not found" });
+        if (user.lastOtpRequestedAt && Date.now() - new Date(user.lastOtpRequestedAt).getTime() < 30_000) {
+          return res.status(429).json({ error: "Please wait before requesting another verification code." });
+        }
   
         // console.log("EMAIL:", email);
         // console.log("USER FOUND:", user);
