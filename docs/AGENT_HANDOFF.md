@@ -1,6 +1,22 @@
 # Agent handoff — TAKATAK backend
 _Updated: 2026-10-14. Read AGENTS.md and WORKLOG.md first. This is a live handoff log, not evidence of production deployment._
 
+## Latest session: refresh safety, OTP attempt limits and deployment provenance (2026-10-14)
+
+**Last completed task.** Verified previous main CI at `9b9229ae0734f38e7f3134e10ce4e8b92c161929` succeeded (run `38624514835`). Implemented and pushed a security/reliability improvement: validate opaque refresh secret before user lookup; sign access JWT before compare-and-swap refresh rotation; test replay, race and invalid private-key handling. Added `GET /health/version` returning a 40-hex commit SHA from `RELEASE_SHA`, `RENDER_GIT_COMMIT`, or `GIT_COMMIT_SHA`, otherwise `null`, with `Cache-Control: no-store`. Secured legacy email OTP verification with atomic five-attempt reservation, atomic single-use consumption, and per-code counter reset on issuance.
+
+**Branch, latest committed reference.** `takatakca/takatakbackend` branch `main`; latest successfully pushed commit **before writing this self-updating handoff**: `ffa0d580c7751528ed4224aec81b0de40cb2469f` (WORKLOG). This handoff update creates a subsequent commit: always query the branch HEAD to identify final SHA.
+
+**Files changed.** `WORKLOG.md`, `controller/refreshController.js`, `utils/releaseRevision.js`, `index.js`, `test/refreshController.test.js`, `test/releaseRevision.test.js`, `utils/emailOtpAttempts.js`, `models/User.js`, `controller/Auth.js`, `test/emailOtpAttempts.test.js`, `.github/workflows/backend-ci.yml`, `README.md`, `docs/PROJECT_STATUS.md`, `docs/TASK_QUEUE.md`, `docs/DEPLOYMENT.md`, `docs/DECISIONS.md`, and this file. No edits were made to the route retirement in PR #1.
+
+**Verification and tools.** Inspected GitHub repo/branch/commits, AGENTS.md, WORKLOG.md, PR #1, issue #2, source and latest CI. Used connected GitHub file update/create APIs for commits directly to main. GitHub Actions performs `npm ci`, `npm test`, and `node --check` for relevant sources. Last confirmed green code+workflow run: [38626338117](https://github.com/takatakca/takatakbackend/actions/runs/38626338117), SHA `9b2b717b617942011d2c8ab7a52bf3c887640398`; later documentation commits require verifying the newest SHA's workflow before declaring its CI green. No local or production npm commands executed, and no actual service deployed by this agent.
+
+**Production status.** **NOT VERIFIED DEPLOYED**. The repository has a CI workflow but no confirmed deployment pipeline or linked service ID. Attempt to read GitHub deployment records through the current connector was rejected as unsupported. Prior Render workspace `My Workspace` was found but its explicit selection remains required before inspecting services; no correct backend host proven. There are no live health, Upmind/Twilio, MongoDB indexes, consumer migration or deployed-SHA checks.
+
+**Blocking issues.** Public repository `keys/private.pem` must be considered exposed and rotated in coordination with all JWT consumers (issue #2); do not silently alter a live key. Legacy Mongo auth retirement is PR #1 (open, unmerged; requires consumer migration). Production MongoDB TTL audit `npm run audit:sessions` requires authorized DB. Runtime `npm run check:release` requires correct external rotated keys and real hosting environment. Legacy encryption and cross-tenant entitlement migration remain not done.
+
+**Next action exactly:** Fetch `GET /repos/takatakca/takatakbackend/branches/main` and `GET /repos/takatakca/takatakbackend/actions/runs?per_page=10`; match the latest SHA with a completed/success run and troubleshoot jobs if failed. Then identify the authorized production service/provider, inspect its linked repo/branch and actual deployment; coordinate key rotation (#2), inspect TTL indexes with read-only script, and compare `/health/version` to provider release SHA while checking `/health/ready`. Keep open PR #1 unchanged until migration is verified.
+
 ## Latest continuation addendum — session TTL audit (2026-10-14)
 
 - **Last completed:** implemented `scripts/audit-session-ttl.js` (read-only MongoDB session index inspector), `test/sessionIndexAudit.test.js`, `npm run audit:sessions`, CI syntax validation and operational docs/runbook updates. Detects obsolete `createdAt` TTL and missing `expiresAt` TTL; **never** creates/drops indexes.
