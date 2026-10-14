@@ -27,6 +27,9 @@ _Last updated: 2026-10-14._
 | D-020 | Load the current JWT public key for each JWKS request and cap its HTTP cache to 60 seconds. | Avoid indefinitely publishing a stale key after authorized secret rotation while allowing downstream verifiers a bounded cache. |
 | D-021 | Expired legacy email OTP cleanup must match the old code hash and expiry in an atomic update. | A stale expired-code request must never overwrite a newly issued verification code. |
 
+| D-022 | Legacy phone OTP must load select:false Upmind client ID before attempting account association. | Prevent duplicate customer provisioning when a previously linked account signs in by phone. |
+| D-023 | Clear temporary reversible Upmind password once account association is established; validate AES-GCM secret and serialized format on use. | Minimize unnecessary retained credentials without breaking existing ciphertext records; eliminate remaining reversible password storage through central Auth migration. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
