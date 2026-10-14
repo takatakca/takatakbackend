@@ -14,6 +14,9 @@ _Last updated: 2026-10-14._
 | D-009 | CI is not deployment. | Do not claim live success without provider service/branch, release SHA, runtime logs and health checks. |
 | D-010 | Move session TTL to explicit `expiresAt`, with deliberate index migration. | Existing 7-day index can expire 30-day sessions; schema update alone does not remove it. |
 | D-011 | Follow `AGENTS.md` and five-file handoff on each session. | Enables resume without agent collisions or undocumented work. |
+| D-012 | Normalize new legacy phone inputs in E.164; assume `+1` only for ten-digit NANP numbers. | Stop silently prefixing Canadian numbers with `+234`; historic records require validated migration. |
+| D-013 | Configure consistent RS256 `JWT_KEY_ID` on issuer and JWKS. | Prepares rotation; does not replace external key provisioning. |
+| D-014 | Use cryptographic OTPs and persisted 30-second legacy login cooldown. | Mitigates predictable-code and resend abuse until Auth cutover. |
 
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
