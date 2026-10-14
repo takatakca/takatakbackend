@@ -23,7 +23,7 @@ async function createSessionAndSetCookies(user, req, res) {
   const accessToken = jwt.sign(
     { sub: String(user._id), sid, role: user.role, email: user.email },
     privateKey,
-    { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
+    { algorithm: "RS256", keyid: process.env.JWT_KEY_ID || "takatak-key", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
   );
 
   await Session.create({
