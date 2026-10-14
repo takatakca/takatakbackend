@@ -1,6 +1,15 @@
 # Agent handoff — TAKATAK backend
 _Updated: 2026-10-14. Read AGENTS.md and WORKLOG.md first. This is a live handoff log, not evidence of production deployment._
 
+## Latest continuation addendum — session TTL audit (2026-10-14)
+
+- **Last completed:** implemented `scripts/audit-session-ttl.js` (read-only MongoDB session index inspector), `test/sessionIndexAudit.test.js`, `npm run audit:sessions`, CI syntax validation and operational docs/runbook updates. Detects obsolete `createdAt` TTL and missing `expiresAt` TTL; **never** creates/drops indexes.
+- **Previously pushed SHA:** `78c28a2671e06c75c13bde7b3709c0c7187b16da` (decision record). This handoff update creates a new SHA; query `main` head rather than expecting self-referential SHA in its content.
+- **Verification:** last confirmed green full `main` workflow before auditor: run `38624212247`, SHA `751a912760c858d2d78a7f6a7abe0ee642462e7b`. Audit and tests committed afterward; fetch the run matching the newest HEAD. Relevant CI: `npm ci`, `npm test`, `node --check scripts/audit-session-ttl.js`. Neither production `npm run audit:sessions` nor `npm run check:release` has been executed because actual hosting/keys/DB access have not been confirmed.
+- **Files added/modified since previous handoff:** `scripts/audit-session-ttl.js`, `test/sessionIndexAudit.test.js`, `package.json`, `.github/workflows/backend-ci.yml`, `docs/DEPLOYMENT.md`, `docs/SECURITY-AND-RELEASE.md`, `docs/TASK_QUEUE.md`, `docs/PROJECT_STATUS.md`, `docs/DECISIONS.md`, `WORKLOG.md`, this handoff.
+- **Current task / next exact action:** check latest `main` SHA GitHub Actions run (match both SHA and completed/success); investigate any failed job logs. Then identify backend's actual authorized runtime; with real production access first run the offline `npm run check:release` after coordinating external RSA key replacement (#2), and read-only `npm run audit:sessions` against the verified MongoDB database. Do **not** modify indexes automatically or merge auth retirement PR #1 until canonical client migration is established.
+- **Deployment:** NOT verified; no service mapping, live SHA, runtime logs, integration results or health probes established. Existing blockers remain exposed signing key, unconfirmed hosting, legacy login cutover, production index state and tenant/Upmind integration. No secrets stored in docs.
+
 ## Most recent resumed session — 2026-10-14
 
 **Repository / branch:** `takatakca/takatakbackend` / `main`. Reviewed `AGENTS.md`, `WORKLOG.md`, this handoff, project status/queue, open auth PR #1 and key-exposure issue #2. Existing features preserved.
