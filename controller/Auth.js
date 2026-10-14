@@ -357,7 +357,7 @@ const createUpmindSession = async (req, res) => {
 };
 
 
-const publicKey = fs.readFileSync("./keys/public.pem", "utf8")
+const publicKey = fs.readFileSync(process.env.PUBLIC_KEY_PATH || require("node:path").join(__dirname, "..", "keys", "public.pem"), "utf8")
 // onvert to JWK and serve as JWKS
 const getJwks = async(req, res) => {
    // dynamic import inside CommonJS
