@@ -17,6 +17,7 @@ _Last updated: 2026-10-14._
 | D-012 | Normalize new legacy phone inputs in E.164; assume `+1` only for ten-digit NANP numbers. | Stop silently prefixing Canadian numbers with `+234`; historic records require validated migration. |
 | D-013 | Configure consistent RS256 `JWT_KEY_ID` on issuer and JWKS. | Prepares rotation; does not replace external key provisioning. |
 | D-014 | Use cryptographic OTPs and persisted 30-second legacy login cooldown. | Mitigates predictable-code and resend abuse until Auth cutover. |
+| D-015 | Reject release configuration using known exposed signing keys or a mismatched RSA key pair. | Offline `npm run check:release` provides a fail-closed configuration gate; an actual provider deployment and online health still require verification. |
 
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
