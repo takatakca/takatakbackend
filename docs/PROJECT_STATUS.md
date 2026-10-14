@@ -26,7 +26,7 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - **Architecture**: tenant-scoped identity claims, entitlements and canonical TAKATAK auth must be integrated with the designated platform, rather than added ad hoc to MongoDB.
 
 ## Verification
-- Previous run: GitHub Actions `Backend CI` succeeded for `main` SHA `73ce6c9a4ec4f7f7bf13e0e6560e1c02bfd329f4`.
+- GitHub Actions `Backend CI` succeeded for `main` SHA `6c357136744737a5d8d1a9a7ebcddcbe0f0bae80` (run `38623401862`). Later changes require a separate matching-SHA run.
 - New code: workflow runs after the commits in this session must be checked individually. Do not call a queued or incomplete run successful.
 - Testing currently mocks session authorization; no end-to-end production database, email, Twilio, Upmind or deployment verification has been performed.
 
