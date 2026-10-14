@@ -16,6 +16,10 @@ Once the correct hosting account/workspace is confirmed:
 9. Smoke test authentication migration, failed JWT rejection, refresh/logout, own-account dashboard; never expose test credentials or customer data.
 10. Record deployed commit, timestamp, URL, checks, exceptions and rollback target here and in `AGENT_HANDOFF.md`.
 
+## Read-only MongoDB session-index audit
+
+With authorized production database access, run `npm run audit:sessions` to inspect the current `sessions` collection TTL indexes without changing any data or indexes. Exit 0 indicates the required `expiresAt` TTL is present and the obsolete `createdAt` TTL is absent; exit 2 signals an index migration is required; exit 1 indicates missing access or audit failure. Before any manual index change, verify the correct database, backup, running clients and procedure in `docs/SECURITY-AND-RELEASE.md`.
+
 ## Mandatory offline release preflight
 
 Before initiating a deployment on a **verified** production service, run `NODE_ENV=production npm run check:release` in its real configured environment. The check verifies required variable presence, key-pair matching and non-use of the publicly exposed bundled signing key. It does not display credentials or contact remote services. A green result does **not** validate MongoDB availability, tenant authorizations or deployment. Do not fake values to make it pass; fix production secret configuration first. The legacy RSA key remains exposed until coordinated replacement (issue #2).
