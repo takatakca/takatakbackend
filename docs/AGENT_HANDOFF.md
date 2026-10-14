@@ -1,6 +1,20 @@
 # Agent handoff — TAKATAK backend
 _Updated: 2026-10-14. Read AGENTS.md and WORKLOG.md first. This is a live handoff log, not evidence of production deployment._
 
+## Additional continuation — live JWKS reload and stale OTP cleanup (2026-10-14)
+
+**Last completed task:** the legacy `GET /auth/well-known/jwks.json` now reads the configured public key file for each request, publishes a bounded 60-second cache, and returns a controlled 503 if unavailable. `test/keyRotation.test.js` verifies a replaced public key is reflected in the next JWKS response. Expired email OTP cleanup in `controller/Auth.js` now performs an atomic, conditional MongoDB update tied to the old OTP hash and expired timestamp; a stale request cannot erase an OTP issued concurrently. `test/emailOtpAttempts.test.js` includes a regression test.
+
+**Latest pushed SHA before this self-updating handoff:** `667f8976dd57ad2a48e7c46d2887fdc2ea70db98` (WORKLOG). Query the GitHub `main` branch HEAD to get the SHA of this handoff commit and its exact CI run.
+
+**Paths changed since previous handoff:** `controller/Auth.js`, `test/keyRotation.test.js`, `test/emailOtpAttempts.test.js`, `docs/PROJECT_STATUS.md`, `docs/DEPLOYMENT.md`, `docs/DECISIONS.md`, `WORKLOG.md`, `docs/AGENT_HANDOFF.md`.
+
+**Checks:** GitHub Actions `Backend CI` run [38626727370](https://github.com/takatakca/takatakbackend/actions/runs/38626727370) was completed/success for SHA `62e698fcbea0688d64560a4fbd3fb7e6072ed35b`. Subsequent test/documentation commits were queued or cancelled by CI concurrency during the last inspection; obtain completed/success evidence for the exact new main SHA. Do not count cancelled CI as a pass. Commands in CI: `npm ci`, `npm test`, `node --check`. No local or production runtime commands were executed.
+
+**Current task and next exact action:** fetch latest `main` SHA and corresponding `actions/runs`; if failure, inspect failing job logs and fix. When green, determine authorized production host/provider and environment before any deployment; on that actual host provision safe external replacement RS256 keys with cooperating JWT consumers (issue #2), execute `npm run check:release`, inspect production MongoDB indexes using read-only `npm run audit:sessions`, deploy through the confirmed pipeline, and compare `/health/version` SHA with provider release plus `/health/ready`. Do not merge legacy-auth PR #1 before central identity migration.
+
+**Deployment and access:** NOT VERIFIED DEPLOYED. Service identity, secrets, database indexes, runtime release SHA, health checks and upstream Auth/Upmind integrations remain unverified. Render workspace selection is not established; no provider service was modified. No credentials stored or printed. No external orchestrator for automatic agent reactivation is configured.
+
 ## Latest session: refresh safety, OTP attempt limits and deployment provenance (2026-10-14)
 
 **Last completed task.** Verified previous main CI at `9b9229ae0734f38e7f3134e10ce4e8b92c161929` succeeded (run `38624514835`). Implemented and pushed a security/reliability improvement: validate opaque refresh secret before user lookup; sign access JWT before compare-and-swap refresh rotation; test replay, race and invalid private-key handling. Added `GET /health/version` returning a 40-hex commit SHA from `RELEASE_SHA`, `RENDER_GIT_COMMIT`, or `GIT_COMMIT_SHA`, otherwise `null`, with `Cache-Control: no-store`. Secured legacy email OTP verification with atomic five-attempt reservation, atomic single-use consumption, and per-code counter reset on issuance.
