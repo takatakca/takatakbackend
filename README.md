@@ -21,6 +21,8 @@ Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKL
 
 Use Node.js 20 or newer. Run `npm ci`, configure environment variables outside Git, then `npm run dev`. Run `npm test` for unit tests; CI runs these checks on pushes and pull requests.
 
+For the **confirmed production runtime only**, run `npm run check:release` with `NODE_ENV=production`, external `PRIVATE_KEY_PATH` and `PUBLIC_KEY_PATH`, new `JWT_KEY_ID`, MongoDB URI and exact HTTPS `CORS_ORIGINS`. The offline check rejects the repository's exposed signing key, mismatched RSA pairs and unsafe origins. It neither deploys nor verifies connectivity to production services.
+
 Required runtime configuration depends on the enabled legacy integrations. In particular:
 
 | Name | Purpose |
