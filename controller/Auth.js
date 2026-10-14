@@ -374,24 +374,27 @@ const createUpmindSession = async (req, res) => {
 };
 
 
-const publicKey = fs.readFileSync(process.env.PUBLIC_KEY_PATH || require("node:path").join(__dirname, "..", "keys", "public.pem"), "utf8")
-// onvert to JWK and serve as JWKS
-const getJwks = async(req, res) => {
-   // dynamic import inside CommonJS
-    const { importSPKI, exportJWK } = await import("jose");
+// Read the currently configured public key on each request. Signers and
+// verifiers read the same external key path; caching this at module load can
+// serve a stale JWKS after a controlled key rotation.
+const getJwks = async (_req, res) => {
     try {
+        const publicKeyPath = process.env.PUBLIC_KEY_PATH ||
+            require("node:path").join(__dirname, "..", "keys", "public.pem");
+        const publicKey = fs.readFileSync(publicKeyPath, "utf8");
+        const { importSPKI, exportJWK } = await import("jose");
         const keyObj = await importSPKI(publicKey, "RS256");
         const jwk = await exportJWK(keyObj);
-
         jwk.use = "sig";
-        jwk.kid = process.env.JWT_KEY_ID || "takatak-key"; // Must match JWT signing kid
+        jwk.kid = process.env.JWT_KEY_ID || "takatak-key";
         jwk.alg = "RS256";
-
-        res.json({ keys: [jwk] });
+        res.set("Cache-Control", "public, max-age=60");
+        return res.json({ keys: [jwk] });
     } catch (error) {
-        res.status(500).json({ error: "Failed to generate JWKS" });
+        console.error("JWKS configuration unavailable:", error.message);
+        return res.status(503).json({ error: "JWKS unavailable" });
     }
-  }
+};
 
   module.exports = {
     register,
