@@ -55,7 +55,7 @@ test("issued JWT key identifier matches JWKS across configured key rotation", as
   // Import only after PUBLIC_KEY_PATH has been configured in this test worker.
   const { getJwks } = require("../controller/Auth");
   let jwks;
-  await getJwks({}, { json(result) { jwks = result; }, status(code) { throw new Error("JWKS returned " + code); } });
+  await getJwks({}, { json(result) { jwks = result; }, set() {}, status(code) { throw new Error("JWKS returned " + code); } });
   assert.equal(jwks.keys.length, 1);
   assert.equal(jwks.keys[0].kid, decoded.header.kid);
   assert.equal(jwks.keys[0].alg, "RS256");
