@@ -21,6 +21,12 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - `npm run check:release` performs an offline, secret-safe production configuration preflight. It cannot confirm live deployment and intentionally rejects the known exposed signing key.
 - CI workflow `.github/workflows/backend-ci.yml` executes `npm ci`, `npm test`, and syntax checks.
 
+## Latest hardening and CI evidence (2026-10-14)
+- Refresh now validates the secret before looking up its user and signs a new access JWT **before** atomic refresh rotation, so a bad private key does not consume valid refresh credentials. Replay and race conditions are covered by `test/refreshController.test.js`.
+- Legacy email OTP verification uses a MongoDB-atomic per-code attempt counter (maximum five) and consumes the hash through an atomic comparison, preventing concurrent successful reuse. Resending an OTP resets the counter; final retirement remains PR #1.
+- The public `GET /health/version` endpoint returns a 40-character runtime commit SHA from `RELEASE_SHA`, `RENDER_GIT_COMMIT` or `GIT_COMMIT_SHA`, otherwise `null`. It does not prove a deployment by itself: compare its output against provider deployment records.
+- Successful GitHub Actions `Backend CI` run `38626245863` validated commit `3051abed7bbbf10092cdb20cc3b33f81775030ea`, including the refresh and OTP attempt tests. Later documentation/CI changes need a matching-SHA run.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
