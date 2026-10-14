@@ -40,20 +40,28 @@ async function refreshTokenHandler(req, res) {
       return res.status(401).json({ error: "Session expired" });
     }
 
-    // A still-valid refresh secret does not authorize a deleted or disabled account.
+    // Validate the opaque secret first, before inspecting the user record.
+    // A guessed SID must not reveal whether its account exists or is verified.
+    if (!(await verifyTokenHash(token, session.refreshHash))) {
+      // Never let an incorrect token revoke someone else's session.
+      return res.status(401).json({ error: "Invalid refresh credentials" });
+    }
+
+    // A valid refresh secret does not authorize a deleted or disabled account.
     const user = await User.findById(session.userId).select("isVerified");
     if (!user || !user.isVerified) {
       return res.status(401).json({ error: "User not active" });
     }
 
-    if (!(await verifyTokenHash(token, session.refreshHash))) {
-      // Never invalidate someone else's session simply because a caller knows a SID.
-      return res.status(401).json({ error: "Invalid refresh credentials" });
-    }
-
-    // Read the signing key before changing stored credentials.
+    // Sign before mutating the database. Invalid signing configuration must
+    // not consume the user's existing valid refresh token.
     if (!process.env.PRIVATE_KEY_PATH) throw new Error("PRIVATE_KEY_PATH is not configured");
     const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, "utf8");
+    const accessToken = jwt.sign(
+      { sub: String(session.userId), sid: session._id },
+      privateKey,
+      { algorithm: "RS256", keyid: process.env.JWT_KEY_ID || "takatak-key", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
+    );
     const newRefreshToken = randomToken(48);
     const nextHash = hashToken(newRefreshToken);
 
@@ -66,12 +74,6 @@ async function refreshTokenHandler(req, res) {
     if (!rotated) {
       return res.status(401).json({ error: "Session already rotated or expired" });
     }
-
-    const accessToken = jwt.sign(
-      { sub: String(rotated.userId), sid: rotated._id },
-      privateKey,
-      { algorithm: "RS256", keyid: process.env.JWT_KEY_ID || "takatak-key", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
-    );
 
     res.cookie("sid", rotated._id, { ...cookieOptions, maxAge: refreshMaxAge });
     res.cookie("refresh_token", newRefreshToken, { ...cookieOptions, maxAge: refreshMaxAge });
