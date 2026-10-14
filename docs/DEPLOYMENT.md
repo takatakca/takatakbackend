@@ -16,6 +16,12 @@ Once the correct hosting account/workspace is confirmed:
 9. Smoke test authentication migration, failed JWT rejection, refresh/logout, own-account dashboard; never expose test credentials or customer data.
 10. Record deployed commit, timestamp, URL, checks, exceptions and rollback target here and in `AGENT_HANDOFF.md`.
 
+## Verify the exact deployed commit
+
+The backend exposes `GET /health/version` with JSON `{ "revision": "<40-hex-SHA>" }` when a runtime-provided SHA is available. Valid environment sources are `RELEASE_SHA` (preferred explicit deploy value), `RENDER_GIT_COMMIT`, and `GIT_COMMIT_SHA`. If none contains a valid commit, the endpoint returns `{ "revision": null }`: **unknown is not a successful deployment**. When configuring release automation for a confirmed host, inject the exact GitHub commit into `RELEASE_SHA`; compare endpoint output with provider release record, the intended branch, and the GitHub Actions run. Keep this endpoint uncredentialed but strictly metadata-only, with `Cache-Control: no-store`.
+
+Neither this route nor `/health/live` verifies Upmind, MongoDB permissions, token rotation, or that clients were migrated. Continue readiness and authenticated smoke checks separately.
+
 ## Read-only MongoDB session-index audit
 
 With authorized production database access, run `npm run audit:sessions` to inspect the current `sessions` collection TTL indexes without changing any data or indexes. Exit 0 indicates the required `expiresAt` TTL is present and the obsolete `createdAt` TTL is absent; exit 2 signals an index migration is required; exit 1 indicates missing access or audit failure. Before any manual index change, verify the correct database, backup, running clients and procedure in `docs/SECURITY-AND-RELEASE.md`.
