@@ -6,7 +6,8 @@
     "test": "node --test",
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "check:release": "node scripts/check-release-readiness.js"
+    "check:release": "node scripts/check-release-readiness.js",
+    "audit:sessions": "node scripts/audit-session-ttl.js"
   },
   "keywords": [],
   "author": "",
