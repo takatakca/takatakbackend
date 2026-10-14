@@ -7,7 +7,7 @@ Possible platforms across GROUPE TAKATAK include MochaHost and Render. This repo
 Once the correct hosting account/workspace is confirmed:
 1. Identify service, linked repository, deployed branch, custom domain and auto-deploy setting.
 2. Record non-sensitive service ID, external URL and branch in this document.
-3. Validate required secret **presence**: `MONGO_URI`, `PRIVATE_KEY_PATH`, `PUBLIC_KEY_PATH`, `ISSUER`, `CORS_ORIGINS`, `UPMIND_KEY`, Twilio and SendGrid only where still used. Do not dump values.
+3. Validate required secret **presence**: `MONGO_URI`, `PRIVATE_KEY_PATH`, `PUBLIC_KEY_PATH`, `ISSUER`, `JWT_KEY_ID`, `CORS_ORIGINS`, `UPMIND_KEY`, Twilio and SendGrid only where still used. Match the JWT header `kid` to active JWKS. Do not dump values.
 4. Confirm effective Node runtime >=20 and install command `npm ci`; production startup `npm start`.
 5. Confirm storage of signing key outside Git. Coordinate security issue #2 before normal release.
 6. Inspect MongoDB indexes and migrate obsolete 7-day TTL index with an approved backup.
