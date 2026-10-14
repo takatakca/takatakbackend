@@ -50,6 +50,12 @@ Do not apply these commands blindly to other databases. Session refresh checks e
 - Confirm no routes allow a merchant to read another merchant's customer records. Legacy authenticated routes are not a multi-tenant authorization design.
 - Enable GitHub-to-production deployment only after identifying the correct service/workspace and confirming runtime settings. The CI workflow does not trigger an external deploy.
 
+## Legacy Upmind credentials and hidden model fields
+
+Legacy `upmindClientId` and `encryptedPassword` are both `select:false` fields. Phone OTP verification must request both fields; successful email OTP consumption must request both as well. Otherwise `ensureUpmindClient` can fail to recognize an already linked user and attempt duplicate customer provisioning.
+
+When an Upmind association is already established, `ensureUpmindClient` now clears any loaded temporary encrypted password before returning; exact search matches clear it as well. Existing stored AES-GCM records preserve the original `iv:tag:ciphertext` representation, while missing/invalid `PASSWORD_ENCRYPT_SECRET` produces a controlled error at use. **Not yet complete:** unlinked customers may retain reversible temporary passwords for legacy Upmind account creation. Elimination of that workflow requires an approved identity/payment integration migration and verified provider contract. Do not bulk-rewrite or delete customer passwords without a migration plan.
+
 ## Known legacy debt
 
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
