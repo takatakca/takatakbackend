@@ -1,12 +1,24 @@
 # Agent handoff — TAKATAK backend
 _Updated: 2026-10-14. Read AGENTS.md and WORKLOG.md first. This is a live handoff log, not evidence of production deployment._
 
+## Latest completed follow-up (2026-10-14)
+
+- **Completed and pushed to `main`:** DB-backed JWT session and verified user checks; DB-derived role/email; new tests for forged roles, inactive sessions and exact Upmind brand; lazy Twilio/SendGrid initialization; Twilio Verify `approved` normalization; persistent `upmindRetryNeeded` flag; missing Upmind integration reports `unavailable` and `null` counts (never false zeroes); CI concurrency and expanded syntax checks; AGENTS/README documentation links.
+- **Last confirmed pushed SHA before this handoff update:** `4d092e4369afe070949793795ed683570d95d895` (WORKLOG status update). Fetch the current main head, which includes this document's new commit, when resuming.
+- **Latest CI check:** workflow run `38615205788` was **queued** for SHA `4d092e4369afe070949793795ed683570d95d895`. Later runs after this document commit supersede it; check `/actions/runs` and rely only on matching SHA's completed success. Earlier main run `38611397190` passed before these edits.
+- **Production status:** NOT DEPLOYED/NOT VERIFIED. No backend production service, deployment SHA, secret presence or health endpoints have been confirmed. Do not use Render tools without the user's explicit workspace choice; user had not confirmed `My Workspace`. MochaHost identity from other projects is not proof of this backend host.
+- **Next exact action:** inspect most recent GitHub Actions result for the latest main commit; if failed, fetch job logs and fix. Then determine actual runtime deployment target from explicitly authorized hosting scope. Keep security issue #2 and auth retirement PR #1 separately tracked.
+- **Other blockers:** public RSA signing key must be rotated; MongoDB legacy TTL index needs controlled migration; OAuth/tenant authorization and actual Upmind provider contract need validation; no external orchestrator configured for automatic session restart.
+- **Modified since prior handoff:** `utils/sendOtpToPhone.js`, `utils/sendOtpToEmail.js`, `controller/Auth.js`, `controller/refreshController.js`, `controller/userDashboard.js`, `services/upmindService.js`, `models/User.js`, `test/startup.test.js`, `test/upmind.test.js`, `.github/workflows/backend-ci.yml`, `AGENTS.md`, `README.md`, `docs/SECURITY-AND-RELEASE.md`, `WORKLOG.md`.
+- **Verification commands:** GitHub CI executes `npm ci`, `npm test`, `node --check`; GitHub API read/write used for commits. Git clone from the local container failed DNS lookup for github.com; local tests not run. No provider deployment command executed.
+- **No credential exposure:** external keys, production database and hosting workspace still require authorized configured access.
+
 ## Resume target
 - Repository: https://github.com/takatakca/takatakbackend
 - Publication branch: `main`.
 - **Last completed implementation:** authenticated legacy API requests now require an active MongoDB session bound to JWT subject, with verified user and server-side role; fixed owner-specific Upmind dashboard linkage and lazy JWT key handling. Unit test added for forged-role/session rejection. This work is committed and pushed.
 - **Current task:** verify most recent GitHub Actions for new auth/session tests, then handle any failing checks. Continue safely with independent improvements and deployment discovery.
-- **Most recent commit before this handoff was written:** `b9534a22a6c5336f63ec6a09a547eb07fec7785b` (docs/DECISIONS.md). To get the **latest** SHA, read the head of main after this handoff commit; a document cannot store its own content-addressed commit SHA.
+- **Earlier handoff reference:** `b9534a22a6c5336f63ec6a09a547eb07fec7785b` (docs/DECISIONS.md); latest previous main SHA is recorded in the addendum above. To get the **latest** SHA, read the head of main after this handoff commit; a document cannot store its own content-addressed commit SHA.
 
 ## Changes committed in this session
 - `WORKLOG.md`: active work claimed at top, to be marked done or blocked on conclusion.
