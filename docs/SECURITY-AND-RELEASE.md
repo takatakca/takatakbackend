@@ -18,6 +18,8 @@ The public repository contains `keys/private.pem` in tracked history. Assume the
 
 The original Session model created a TTL index on `createdAt` expiring after 7 days, even though refresh session TTL defaults to 30 days. The new model sets the TTL on `expiresAt` (the actual session expiry). Mongoose will not automatically delete the old MongoDB index.
 
+First, on a securely configured, authorized runtime, run the **read-only** `npm run audit:sessions` (requires `MONGO_URI`). Its exit code signals healthy/needs migration/error without making DB changes.
+
 On the **correct database** after reviewing backups and the deployment:
 
 ```javascript
