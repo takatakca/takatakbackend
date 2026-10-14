@@ -1,6 +1,7 @@
 
 const Users = require('../models/User');
 const { normalizePhone } = require("../utils/phoneUtils");
+const { findLegacyPhoneOtpUser } = require("../utils/legacyOtpAccount");
 const {sendOtpToPhone, checkOtpFromPhone} = require("../utils/sendOtpToPhone");
 const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
@@ -183,7 +184,7 @@ const verifyOtp = async (req, res) => {
         if(phone){
             if (!otp) return res.status(400).json({ message: 'OTP is required' });
 
-            user = await Users.findOne({ phone: normalizePhone(phone) }).select("+encryptedPassword");
+            user = await findLegacyPhoneOtpUser(phone);
             if (!user) return res.status(401).json({ error: "Phone number not found" });  
            
             // Twilio Verify: check the code
