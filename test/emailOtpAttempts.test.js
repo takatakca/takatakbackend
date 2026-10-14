@@ -82,3 +82,27 @@ test("single-use OTP reservation and consumption carry atomic MongoDB guards", a
   assert.equal(queries[1].updates.$set.otpAttempts, 0);
   assert.equal(queries[1].updates.$push.activity.action, "register");
 });
+
+test("expired OTP cleanup is conditioned on the stale hash and expiry, not a stale document save", async t => {
+  const stale = {
+    _id: "507f1f77bcf86cd799439011",
+    userotp: "stale-email-otp-hash",
+    regTokenExpires: new Date(Date.now() - 60_000),
+    save() { throw new Error("Unconditional save could erase a concurrently issued code"); },
+  };
+  let filter, changes;
+  t.mock.method(Users, "findOne", () => ({ select: async () => stale }));
+  t.mock.method(Users, "updateOne", async (query, update) => {
+    filter = query;
+    changes = update;
+    return { matchedCount: 0, modifiedCount: 0 };
+  });
+  const res = response();
+  await verifyOtp({ body: { email: "member@example.com", otp: "123456" } }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(filter._id, stale._id);
+  assert.equal(filter.userotp, stale.userotp);
+  assert.ok(filter.$or.some(entry => entry.regTokenExpires?.$lte instanceof Date));
+  assert.equal(changes.$unset.userotp, 1);
+  assert.equal(changes.$set.otpAttempts, 0);
+});
