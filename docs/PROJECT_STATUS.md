@@ -16,6 +16,9 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - Cookie settings, configurable JWT public key for JWKS, startup DB readiness, exact-origin CORS, health endpoints and safe API-key middleware.
 - Upmind dashboard reads its owner-linked client ID (schema field is select:false) and uses a private no-store response.
 - Upmind auto-link no longer blindly accepts fuzzy first search result; mismatches are flagged for follow-up.
+- Legacy OTP uses cryptographically secure six-digit codes and a database-timestamp-based 30-second login cooldown; phone normalization uses Canadian/US `+1` for 10-digit numbers and preserves explicit E.164 numbers. Historic incorrect `+234` records require verified migration.
+- JWT `kid` is configurable through `JWT_KEY_ID` and matches the published JWKS identifier. The exposed signing key **has not been rotated**.
+- `npm run check:release` performs an offline, secret-safe production configuration preflight. It cannot confirm live deployment and intentionally rejects the known exposed signing key.
 - CI workflow `.github/workflows/backend-ci.yml` executes `npm ci`, `npm test`, and syntax checks.
 
 ## Not complete
