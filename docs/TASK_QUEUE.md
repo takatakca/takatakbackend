@@ -18,6 +18,7 @@ _Last review: 2026-10-14. Newest authoritative progress is in WORKLOG.md._
 | TK-BE-014 | P1 | completed in code; live deployment pending | Expose runtime revision via `/health/version` with strict SHA validation and test | CI green and provider SHA corroborated after actual deployment |
 | TK-BE-015 | P1 | completed for legacy OTP; cutover pending | Atomically enforce five failed email OTP attempts and single-use consumption | New tests green; canonical Auth migration/retirement still required |
 | TK-BE-016 | P1 | completed in code | Sign refresh JWT before token rotation, reject replay and racing updates | New test scenarios green and runtime live path later verified |
+| TK-BE-017 | P1 | coded; CI/live Upmind validation pending | Preserve hidden Upmind linkage in legacy phone OTP; delete transient reversible credential once client linked | Tests pass for final main SHA, no duplicate Upmind client on live sign-in, old encrypted secrets cleared on linked accounts |
 | TK-BE-012 | P1 | completed | Establish five-document handoff process | `PROJECT_STATUS`, `TASK_QUEUE`, `AGENT_HANDOFF`, `DEPLOYMENT`, `DECISIONS` committed in docs |
 
 ## Work rules
