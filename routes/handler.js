@@ -6,33 +6,20 @@ const { logoutHandler } = require('../controller/logoutController');
 const authMiddleware = require('../middleware/authMiddleware');
 const verifyApiKey = require('../middleware/verifyApiKey');
 
-
 const router = express.Router();
 
-/**
- * ======================
- * 🔓 Public Auth Routes
- * ======================
- */
-
+// Legacy identity endpoints remain until the separate retirement PR is reviewed.
 router.post('/auth/register', register);
-// router.post('/auth/register', verifyApiKey, register);
 router.post('/auth/login', login);
-// router.post('/auth/login', verifyApiKey, login);
 router.post('/auth/verify-otp', verifyOtp);
 router.post('/auth/resend-code', requestNewCode);
 router.get('/auth/well-known/jwks.json', getJwks);
 
-/**
- * ======================
- * 🔐 Authenticated Routes
- * ======================
- */
-router.post('/auth/refresh', authMiddleware, refreshTokenHandler);
-router.post('/auth/logout', authMiddleware,  logoutHandler);
+// A refresh token (not an expired access JWT) authenticates this operation.
+router.post('/auth/refresh', refreshTokenHandler);
+router.post('/auth/logout', authMiddleware, logoutHandler);
 
-
-router.get('/user/dashboard', authMiddleware, getUserDashboard)
-router.get('/user/upmindClientId', authMiddleware, createUpmindSession) 
+router.get('/user/dashboard', authMiddleware, getUserDashboard);
+router.get('/user/upmindClientId', authMiddleware, createUpmindSession);
 
 module.exports = router;
