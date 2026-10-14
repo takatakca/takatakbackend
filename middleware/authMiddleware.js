@@ -38,7 +38,7 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: "Session not active" });
     }
 
-    const user = await User.findById(payload.sub).select("role email");
+    const user = await User.findById(payload.sub).select("role email isVerified");
     if (!user || !user.isVerified) {
       return res.status(401).json({ error: "User not active" });
     }
