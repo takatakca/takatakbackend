@@ -27,6 +27,9 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - The public `GET /health/version` endpoint returns a 40-character runtime commit SHA from `RELEASE_SHA`, `RENDER_GIT_COMMIT` or `GIT_COMMIT_SHA`, otherwise `null`. It does not prove a deployment by itself: compare its output against provider deployment records.
 - Successful GitHub Actions `Backend CI` run `38626245863` validated commit `3051abed7bbbf10092cdb20cc3b33f81775030ea`, including the refresh and OTP attempt tests. Later documentation/CI changes need a matching-SHA run.
 
+- JWKS now reads the currently configured public key per request instead of caching its PEM at module import; regression test checks a changed key is visible. A coordinated rotation is still mandatory before production acceptance.
+- Expired email OTP cleanup now uses an update conditional on the **old hash and expiry**, so stale verification requests cannot erase a newer concurrent code.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
