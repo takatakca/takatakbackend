@@ -1,30 +1,31 @@
-const client = require("twilio")(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+"use strict";
 const { normalizePhone } = require("./phoneUtils");
 
-// Send OTP via Twilio Verify service
-async function sendOtpToPhone(phone) {
-  const to = normalizePhone(phone);
+// Do not initialize the Twilio client at module import: health/startup routes
+// must work without legacy OTP credentials once the cutover is completed.
+function getVerifyClient() {
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID } = process.env;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_VERIFY_SERVICE_SID) {
+    throw new Error("Twilio Verify is not configured");
+  }
+  const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  return client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID);
+}
 
-  return await client.verify.v2
-    .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-    .verifications.create({
-      to,
-      channel: "sms",
-    });
+async function sendOtpToPhone(phone) {
+  return getVerifyClient().verifications.create({
+    to: normalizePhone(phone),
+    channel: "sms",
+  });
 }
 
 async function checkOtpFromPhone(phone, code) {
-  const to = normalizePhone(phone);
-
-  return await client.verify.v2
-    .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-    .verificationChecks.create({
-      to,
-      code,
-    });
+  const result = await getVerifyClient().verificationChecks.create({
+    to: normalizePhone(phone),
+    code,
+  });
+  // Legacy controller expects a boolean `valid` flag, not Twilio's status string.
+  return { ...result, valid: result.status === "approved" };
 }
 
 module.exports = { sendOtpToPhone, checkOtpFromPhone };
