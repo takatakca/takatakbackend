@@ -24,7 +24,7 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
-- **Database**: production legacy `createdAt` TTL index may still delete sessions after 7 days. Verify/migrate against the correct database.
+- **Database**: production legacy `createdAt` TTL index may still delete sessions after 7 days. New read-only `npm run audit:sessions` identifies the required index changes; live production inspection/migration remains blocked until verified database access.
 - **Production**: no confirmed service/workspace, environment secrets, running release SHA or health-check evidence recorded. CI is **not deployment**.
 - **Architecture**: tenant-scoped identity claims, entitlements and canonical TAKATAK auth must be integrated with the designated platform, rather than added ad hoc to MongoDB.
 
