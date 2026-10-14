@@ -1,6 +1,26 @@
 # Agent handoff — TAKATAK backend
 _Updated: 2026-10-14. Read AGENTS.md and WORKLOG.md first. This is a live handoff log, not evidence of production deployment._
 
+## Most recent resumed session — 2026-10-14
+
+**Repository / branch:** `takatakca/takatakbackend` / `main`. Reviewed `AGENTS.md`, `WORKLOG.md`, this handoff, project status/queue, open auth PR #1 and key-exposure issue #2. Existing features preserved.
+
+**Last completed task:** corrected legacy Canadian/US phone normalization (10 digits → `+1` E.164), preserved explicitly provided international numbers, rejected malformed numbers with HTTP 400; fixed legacy verified-user persistence and absent OTP expiry; made six-digit email codes cryptographically random; applied a persistent 30-second legacy login request cooldown. Made newly signed RS256 JWT header `kid` match JWKS through `JWT_KEY_ID`. Added offline production release preflight to reject missing settings, mismatched RSA keys, unsafe origins and known publicly exposed repository keys. Added tests for phone parsing, JWT/JWKS consistency, OTP and release readiness.
+
+**Files changed in this resumed session:** `utils/phoneUtils.js`, `controller/Auth.js`, `controller/authSession.js`, `controller/refreshController.js`, `utils/generateOtp.js`, `test/phoneUtils.test.js`, `test/keyRotation.test.js`, `test/generateOtp.test.js`, `test/legacyLogin.test.js`, `scripts/check-release-readiness.js`, `test/releaseReadiness.test.js`, `package.json`, `.github/workflows/backend-ci.yml`, `README.md`, `docs/SECURITY-AND-RELEASE.md`, `docs/PROJECT_STATUS.md`, `docs/TASK_QUEUE.md`, `docs/DEPLOYMENT.md`, `docs/DECISIONS.md`, `WORKLOG.md` and this handoff.
+
+**Git:** all changes directly committed and pushed to `main` via authorized GitHub connector, no force push. Pre-handoff latest pushed SHA: `51ce3b3c722043c96526cb1ec669a224134929aa` (WORKLOG update). Since this file is in the next commit, fetch `main` HEAD from GitHub to get the latest actual commit SHA; do not assume this file can record its own hash.
+
+**Verification / commands:** GitHub Actions executes `npm ci`, `npm test`, `node --check`. The run [38623871543](https://github.com/takatakca/takatakbackend/actions/runs/38623871543) for `67a9ae3d5badbfc6f46c12ed6909f75cc453a214` completed **successfully**, covering release-readiness tests. Subsequent documentation/worklog/CI changes create new runs and can cancel old runs. The new final main SHA must have its own completed-success run. The release command added is `npm run check:release` (for correctly configured production only); **this command has NOT been run in production because its external keys and hosting target are unconfirmed**. No live integration tests or live deploy were performed.
+
+**Task currently pending:** verify CI of latest main HEAD, then determine actual hosting target from authorized provider/service scope, and perform safe key rotation and cutover planning. See `docs/TASK_QUEUE.md`.
+
+**Known blockers, no concealed success:** production service/URL/deployed SHA still unknown; Render workspace selection requires explicit user authorization (earlier `My Workspace` not confirmed); public `keys/private.pem` exposed in Git history (issue #2) and rotation across consumers not done; legacy auth retirement PR #1 must not be merged until clients are migrated; production MongoDB obsolete seven-day TTL index not inspected; Upmind tenant integration not verified; historic incorrectly prefixed `+234` records must be audited before migration. Backend has **not** been verified deployed, and CI does not establish production health.
+
+**Access needed without exposing secrets:** confirmed target hosting service/workspace; secret presence only (`MONGO_URI`, external `PRIVATE_KEY_PATH`, `PUBLIC_KEY_PATH`, new `JWT_KEY_ID`, `ISSUER`, `CORS_ORIGINS`); authorized production database/index access and JWT-consuming service inventory.
+
+**Next exact action:** query GitHub `/repos/takatakca/takatakbackend/branches/main` and `/repos/takatakca/takatakbackend/actions/runs?per_page=10` to identify the latest SHA and matching CI. If failure, read job logs, fix tests and recommit. If successful, inspect actual configured host only after selection/authorization, run `npm run check:release` with real **rotated external** keys on that host, and record the deployed SHA and `/health/live` + `/health/ready` evidence. Do not claim production complete until verified.
+
 ## Latest completed follow-up (2026-10-14)
 
 - **Completed and pushed to `main`:** DB-backed JWT session and verified user checks; DB-derived role/email; new tests for forged roles, inactive sessions and exact Upmind brand; lazy Twilio/SendGrid initialization; Twilio Verify `approved` normalization; persistent `upmindRetryNeeded` flag; missing Upmind integration reports `unavailable` and `null` counts (never false zeroes); CI concurrency and expanded syntax checks; AGENTS/README documentation links.
