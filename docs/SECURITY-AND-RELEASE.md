@@ -7,7 +7,7 @@ The public repository contains `keys/private.pem` in tracked history. Assume the
 **Coordinated action (requires deployment owner and connected consumers):**
 
 1. Inventory services that sign or verify RS256 tokens and all currently accepted `iss`, `kid` and JWKS URLs.
-2. Generate a **new** RSA signing key outside the repository and store it as a secret on the intended runtime; publish only its matching public key/JWKS.
+2. Generate a **new** RSA signing key outside the repository and store it as a secret on the intended runtime; publish only its matching public key/JWKS. Set `PRIVATE_KEY_PATH`, `PUBLIC_KEY_PATH` and a new `JWT_KEY_ID` consistently; verify resulting JWT `kid` equals the JWKS `kid`.
 3. Support a controlled verification overlap only if absolutely necessary, with clear expiry; migrate clients and stop signing with the exposed key.
 4. Rotate/cancel old sessions or force reauthentication according to a planned migration; replace any other credentials that may have leaked. Remove the private key from the current tree *after* the external secret is deployed, then handle repository history exposure with GitHub support/approved rewrite procedures.
 5. Audit authentication logs and verification consumers. Record the completed rotation in WORKLOG.md.
@@ -54,4 +54,4 @@ Do not apply these commands blindly to other databases. Session refresh checks e
 - The current public RSA signing key and signing secret require a coordinated change.
 - The shared cross-product identity, tenant entitlements and canonical TAKATAK customer resolution are **not implemented by the legacy MongoDB service**; they belong to platform services.
 - Upmind now requires a single exact email **and configured brand ID** match before auto-linking a customer; cross-product tenancy and live Upmind response schema still need provider-backed verification. API failures must not be treated as confirmed zero orders.
-- The legacy Canadian phone flow still contains a hard-coded non-Canadian country prefix, to be removed as part of the Auth cutover or corrected before any continued use.
+- The legacy phone normalizer now uses E.164 and Canadian/US `+1` for ten-digit inputs. Historic MongoDB records may still carry incorrectly prefixed `+234`; migrate only after verifying true owners, never via blanket updates.
