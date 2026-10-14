@@ -61,4 +61,16 @@ test("issued JWT key identifier matches JWKS across configured key rotation", as
   assert.equal(jwks.keys[0].alg, "RS256");
   assert.equal(jwks.keys[0].use, "sig");
   assert.equal(jwks.keys[0].d, undefined, "JWKS must not expose private RSA components");
+
+  // A newly provisioned public key must be published by the next request,
+  // without keeping the old public key cached at module import.
+  const nextKeyPair = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
+  const oldModulus = jwks.keys[0].n;
+  fs.writeFileSync(publicPath, nextKeyPair.publicKey);
+  await getJwks({}, { json(result) { jwks = result; }, set() {}, status(code) { throw new Error("JWKS returned " + code); } });
+  assert.notEqual(jwks.keys[0].n, oldModulus, "JWKS must reflect replacement public key");
 });
