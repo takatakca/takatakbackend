@@ -12,6 +12,7 @@ Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKL
 - `POST /auth/refresh`: rotates a valid refresh token independently of an expired access token. Accepts HttpOnly `sid` and `refresh_token` cookies or the same JSON fields for API clients.
 - `POST /auth/logout`: requires Bearer JWT; deletes only the verified token's session.
 - `GET /auth/well-known/jwks.json`: exposes a public verification key (not a private signing key).
+- Legacy phone inputs now normalize to E.164; ten-digit Canadian/US numbers default to `+1`. Existing wrongly prefixed records need audited migration.
 - `GET /user/dashboard`: legacy authenticated user dashboard.
 - `GET /health/live`: process liveness (200 without database check).
 - `GET /health/ready`: readiness (200 with MongoDB connected; otherwise 503).
@@ -30,6 +31,7 @@ Required runtime configuration depends on the enabled legacy integrations. In pa
 | `PRIVATE_KEY_PATH` | Absolute/relative **external** RSA private key path for RS256 signing |
 | `PUBLIC_KEY_PATH` | Optional external verification public key path |
 | `ISSUER` | JWT issuer (defaults to `https://takatak.ca`) |
+| `JWT_KEY_ID` | Identifier attached to RS256 tokens and published in JWKS; coordinate with real key rotation |
 | `ACCESS_TTL` | JWT TTL (defaults to 1 hour) |
 | `REFRESH_TTL_DAYS` | Refresh session sliding TTL (defaults to 30 days) |
 | `CORS_ORIGINS` | Comma-separated **exact** trusted browser origins |
