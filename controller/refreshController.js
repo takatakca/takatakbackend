@@ -70,7 +70,7 @@ async function refreshTokenHandler(req, res) {
     const accessToken = jwt.sign(
       { sub: String(rotated.userId), sid: rotated._id },
       privateKey,
-      { algorithm: "RS256", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
+      { algorithm: "RS256", keyid: process.env.JWT_KEY_ID || "takatak-key", expiresIn: ACCESS_TTL, issuer: process.env.ISSUER || "https://takatak.ca" }
     );
 
     res.cookie("sid", rotated._id, { ...cookieOptions, maxAge: refreshMaxAge });
