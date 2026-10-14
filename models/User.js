@@ -47,6 +47,8 @@ userotp: {
     type: String,
     select: false
 },
+// Concurrency-safe limit on legacy email code verification failures.
+otpAttempts: { type: Number, default: 0, min: 0, select: false },
 
 lastOtpRequestedAt: {
   type: Date,
