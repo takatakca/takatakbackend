@@ -4,6 +4,7 @@ const { normalizePhone } = require("../utils/phoneUtils");
 const {sendOtpToPhone, checkOtpFromPhone} = require("../utils/sendOtpToPhone");
 const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
+const { reserveEmailOtpAttempt, consumeEmailOtp } = require("../utils/emailOtpAttempts");
 const { encrypt, decrypt } = require("../utils/crypto");
 const bcrypt = require("bcrypt");
 const { createSessionAndSetCookies } = require("./authSession")
@@ -86,6 +87,7 @@ const register = async (req, res) => {
       // Save OTP hash + expiry
       RegUser.userotp = await bcrypt.hash(otp, 10);
       RegUser.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+      RegUser.otpAttempts = 0;
     } catch (err) {
       console.error("OTP Error:", err.message || err);
       return res.status(500).json({
@@ -151,6 +153,7 @@ const login = async (req, res) => {
   
         user.userotp = await bcrypt.hash(otp, 10);
         user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
+        user.otpAttempts = 0;
         user.lastOtpRequestedAt = new Date();
         await user.save();
   
@@ -227,56 +230,49 @@ const verifyOtp = async (req, res) => {
 
         }
 
-        // EMAIL (DIY – your existing bcrypt flow)
-        if(email){
-            if (!otp) return res.status(400).json({ message: 'OTP is required' });
-
-            user = await Users.findOne({ email: email.toLowerCase() }).select("+userotp +encryptedPassword");
-            if (!user) return res.status(400).json({ message: "Email not found" });
-
-            if (!user.userotp) return res.status(400).json({ message: 'OTP not requested' });
-            // user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
-
-            if (!user.regTokenExpires || Date.now() > new Date(user.regTokenExpires).getTime()) {
-              // expired — clear OTP immediately
-                user.userotp = undefined;
-                user.regTokenExpires = undefined;
-                await user.save();
-                return res.status(400).json({ message: "OTP expired" });
-              }
-
-            const isMatch = await bcrypt.compare(otp, user.userotp);
-            if (!isMatch) return res.status(400).json({ message: 'Invalid OTP recheck!' });
-
-            const wasAlreadyVerified = user.isVerified;
-
-            user.isVerified = true;
-            user.verifiedAt = new Date();
-            user.userotp = undefined;
-            user.regTokenExpires = undefined;
-
-            if (wasAlreadyVerified) {
-              user.lastAction = "login";
-            } else {
-              user.lastAction = "register";
+        // Email OTP: atomic attempt limit and single-use consumption.
+        if (email) {
+            if (typeof email !== "string" || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+                return res.status(400).json({ message: "Valid email and six-digit OTP are required" });
             }
-            user.lastActionAt = new Date();
-            user.activity.push({ action: user.lastAction, at: user.lastActionAt });
-            
-             // Save OTP removal and verification before any optional Upmind sync.
-             await user.save();
-             // Create Upmind client only if not already created
-             user = await ensureUpmindClient(user)
-    
+            const pending = await Users.findOne({ email: email.trim().toLowerCase() })
+                .select("+userotp +encryptedPassword +otpAttempts");
+            if (!pending) return res.status(400).json({ message: "Invalid or expired code" });
+            if (!pending.userotp) return res.status(400).json({ message: "Invalid or expired code" });
+            if (!pending.regTokenExpires || Date.now() >= new Date(pending.regTokenExpires).getTime()) {
+                pending.userotp = undefined;
+                pending.regTokenExpires = undefined;
+                pending.otpAttempts = 0;
+                await pending.save();
+                return res.status(400).json({ message: "Invalid or expired code" });
+            }
+
+            // The attempt is reserved in MongoDB before comparing the hash.
+            const reserved = await reserveEmailOtpAttempt(Users, pending);
+            if (!reserved) {
+                return res.status(429).json({ message: "Too many attempts or code expired. Request a new code." });
+            }
+            const correct = await bcrypt.compare(otp, reserved.userotp);
+            if (!correct) {
+                return res.status(400).json({ message: "Invalid or expired code" });
+            }
+
+            // Only the first correct concurrent request can consume this hash.
+            user = await consumeEmailOtp(Users, reserved);
+            if (!user) {
+                return res.status(400).json({ message: "Invalid or already used code" });
+            }
+
+            user = await ensureUpmindClient(user);
             const { accessToken, sid } = await createSessionAndSetCookies(user, req, res);
             return res.status(200).json({
-            message: "User verified successfully",
-            token: accessToken,
-            sid,
-            userId: user._id,
-            phone: user.phone,
-            email: user.email,
-            upmindClientId: user.upmindClientId,
+                message: "User verified successfully",
+                token: accessToken,
+                sid,
+                userId: user._id,
+                phone: user.phone,
+                email: user.email,
+                upmindClientId: user.upmindClientId,
             });
         }
 
@@ -328,6 +324,7 @@ const requestNewCode = async (req, res) => {
   
         user.userotp = await bcrypt.hash(otp, 10);
         user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
+        user.otpAttempts = 0;
         user.lastOtpRequestedAt = new Date();
         
 
