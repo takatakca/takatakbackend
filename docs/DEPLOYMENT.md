@@ -22,6 +22,12 @@ The backend exposes `GET /health/version` with JSON `{ "revision": "<40-hex-SHA>
 
 Neither this route nor `/health/live` verifies Upmind, MongoDB permissions, token rotation, or that clients were migrated. Continue readiness and authenticated smoke checks separately.
 
+## Upmind provisioning concurrency safety
+
+Remote Upmind customer creation is now serialized per legacy MongoDB user through a `upmindProvisionLock` (opaque UUID) and `upmindProvisionLockExpiresAt` (two minutes). Only one worker may obtain a live lock while `upmindClientId` is null. Only that lock holder may persist the returned Upmind client ID before expiry, and the lock is released afterward. Interrupted reservations expire without an external scheduler. No new global TAKATAK identity authority is introduced.
+
+After the actual Upmind sandbox/tenant and MongoDB environment are verified, test two simultaneous logins/provisioning attempts for the **same controlled test account** across separate backend workers; confirm at most one Upmind remote create POST and one associated account ID. Confirm retry behavior after a simulated worker crash/expired lock. Check that Upmind itself enforces uniqueness or idempotency for email/brand to prevent duplicates created sequentially by other systems. Never use real customer credentials or delete a production lock manually without reviewing the target record and operational effects.
+
 ## Upmind billing completeness and dashboard smoke checks
 
 The backend requests complete paginated orders, invoices and tickets via `limit`/`offset` from the currently authenticated user's validated `upmindClientId`. The response must provide array `data` and a stable integer `total`; ambiguous or incomplete data is treated as unavailable rather than as a confirmed zero. Pagination is bounded at 1,000 records per collection; larger collections require a reviewed provider contract and a follow-up scalability change, never partial figures presented as complete.
