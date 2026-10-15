@@ -13,7 +13,7 @@ Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKL
 - `POST /auth/logout`: requires Bearer JWT; deletes only the verified token's session.
 - `GET /auth/well-known/jwks.json`: exposes a public verification key (not a private signing key).
 - Legacy phone inputs now normalize to E.164; ten-digit Canadian/US numbers default to `+1`. Existing wrongly prefixed records need audited migration.
-- `GET /user/dashboard`: legacy authenticated user dashboard.
+- `GET /user/dashboard`: legacy authenticated user dashboard. Billing collections are loaded through complete paginated Upmind lists; summary counts are `null` when an account is unlinked or Upmind data is incomplete/unavailable, never a fabricated zero.
 - `GET /health/live`: process liveness (200 without database check).
 - `GET /health/ready`: readiness (200 with MongoDB connected; otherwise 503).
 - `GET /health/version`: exposes the runtime revision (`revision` is a GitHub SHA or `null` if unavailable); compare with actual hosting deployment history, not CI alone.
