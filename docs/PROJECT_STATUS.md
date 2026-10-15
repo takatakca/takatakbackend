@@ -51,6 +51,12 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - The **already exposed** `keys/private.pem` is temporarily pinned to its existing Git blob SHA and produces a warning, not a false claim of remediation. Any replacement at that path is rejected. Rotation of the old key remains the critical coordinated issue #2; do not commit replacement private material.
 - The check is a targeted prevention layer, not a complete replacement for GitHub secret scanning or a substitute for rotating all previously exposed credentials.
 
+## Upmind billing completeness and dashboard truthfulness (2026-10-15)
+- Upmind orders, invoices and tickets now fetch all bounded pages via `limit`/`offset` and require consistent `data` and `total`. Missing/malformed or truncated billing responses do **not** become empty arrays silently; collection requests throw and the authenticated dashboard marks the integration unavailable, with unknown (`null`) counts.
+- The user dashboard now reports `null`, not zero, for all billing summary counts when Upmind is **not linked**, as well as when unavailable. Numeric counts are returned only from fully validated upstream collections.
+- New isolated mocked-HTTP tests: `test/upmindCollections.test.js` covers invoices on a second page, malformed data, a missing page, empty verified totals, client-ID rejection and bounded result sets. `test/userDashboard.test.js` checks linked-owner totals, unlinked accounts and integration errors without using production customer records.
+- These are code/CI checks only. Real Upmind collection schema, large accounts and production tenant scoping still need authorized provider evidence before deployment.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
