@@ -39,6 +39,9 @@ _Last updated: 2026-10-14._
 | D-028 | Run targeted tracked-secret detection before dependency installation in CI. | Reject new private PEM, tracked environment files, key containers and recognizable tokens; do not mistake a passing guard for credential rotation. |
 | D-029 | Pin the already-exposed `keys/private.pem` to its immutable original Git blob while live consumers migrate. | Avoid accidentally accepting a new leaked signing key or breaking a currently unidentified deployment; actual old key remains compromised until coordinated rotation and repo cleanup. |
 
+| D-030 | Paginate owner-scoped Upmind billing lists and reject incomplete/malformed `data` or `total` before calculating counts. | A first page or an incomplete HTTP 200 response must not masquerade as a fully verified list of orders, invoices or tickets; defer counts on provider errors. |
+| D-031 | Return unknown (`null`) dashboard billing metrics for unlinked Upmind accounts as well as unavailable integrations. | Missing linkage is not proof that a customer owes zero invoices or has zero orders; only completed Upmind responses support numeric totals. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
