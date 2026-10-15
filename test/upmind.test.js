@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const User = require("../models/User");
-const { findExactClientMatch } = require("../services/upmindService");
+const { findExactClientMatch, collectCompleteClientSearch } = require("../services/upmindService");
 
 test("Upmind customer linkage requires exact email AND confirmed brand ID", () => {
   const records = [
@@ -30,4 +30,52 @@ test("Upmind retry state has a persisted schema field", () => {
   const field = User.schema.path("upmindRetryNeeded");
   assert.ok(field);
   assert.equal(field.instance, "Boolean");
+});
+
+test("Upmind search fetches all pages before resolving a customer", async () => {
+  const calls = [];
+  const records = [
+    { id: "other", email: "unrelated@example.com", brand_id: "our-brand" },
+    { id: "first-page-other", email: "owner@example.com", brand_id: "wrong-brand" },
+    { id: "correct", email: "owner@example.com", brand_id: "our-brand" },
+  ];
+  const candidates = await collectCompleteClientSearch(({ limit, offset }) => {
+    calls.push({ limit, offset });
+    return { status: "ok", data: records.slice(offset, offset + limit), total: records.length };
+  }, { limit: 2, maxResults: 10 });
+  assert.deepEqual(calls, [{ limit: 2, offset: 0 }, { limit: 2, offset: 2 }]);
+  assert.equal(findExactClientMatch(candidates, "owner@example.com", "our-brand").id, "correct");
+});
+
+test("an empty complete Upmind search is distinguishable from an invalid response", async () => {
+  assert.deepEqual(await collectCompleteClientSearch(async () =>
+    ({ status: "ok", data: [], total: 0 })
+  ), []);
+  await assert.rejects(collectCompleteClientSearch(async () => ({ status: "ok", data: [] })),
+    /Incomplete Upmind client search/);
+  await assert.rejects(collectCompleteClientSearch(async () => ({ status: "error", data: [], total: 0 })),
+    /Incomplete Upmind client search/);
+  await assert.rejects(collectCompleteClientSearch(async () => ({ status: "ok", data: null, total: 0 })),
+    /Incomplete Upmind client search/);
+});
+
+test("truncated and unbounded Upmind searches block duplicate provisioning", async () => {
+  await assert.rejects(collectCompleteClientSearch(async () =>
+    ({ data: [], total: 2 })
+  ), /incomplete or exceeds/);
+  await assert.rejects(collectCompleteClientSearch(async () =>
+    ({ data: [{ id: 1 }, { id: 2 }], total: 1 })
+  ), /incomplete or exceeds/);
+  await assert.rejects(collectCompleteClientSearch(async () =>
+    ({ data: [], total: 101 })
+  ), /incomplete or exceeds/);
+  await assert.rejects(collectCompleteClientSearch(async ({ offset }) =>
+    offset === 0
+      ? { data: [{ id: 1 }], total: 2 }
+      : { data: [{ id: 2 }], total: 3 },
+    { limit: 1, maxResults: 10 }
+  ), /changed during pagination/);
+  await assert.rejects(collectCompleteClientSearch(async () =>
+    ({ data: [], total: 0 }), { limit: 20, maxResults: 10 }
+  ), RangeError);
 });
