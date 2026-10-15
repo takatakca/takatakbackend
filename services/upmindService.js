@@ -101,11 +101,22 @@ async function createClient(user, plainPassword) {
   }
 }
 
+// Do not report missing or partially paginated API data as a real zero.
+// Billing collections use the same complete-list contract as client searches.
+async function fetchCompleteClientCollection(clientId, segment) {
+  const id = validClientId(clientId);
+  return collectCompleteClientSearch(async page => (
+    await client.get(`/admin/clients/${id}/${segment}`, {
+      params: { limit: page.limit, offset: page.offset },
+    })
+  ).data, { limit: 25, maxResults: 1000 });
+}
+
 async function getOrders(clientId) {
   requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${validClientId(clientId)}/orders`);
-    return (res.data?.data || []).map(order => ({
+    const orders = await fetchCompleteClientCollection(clientId, "orders");
+    return orders.map(order => ({
       id: order.id,
       product: order.product?.name || "Unknown product",
       domain: order.domain?.name || null,
@@ -123,8 +134,8 @@ async function getOrders(clientId) {
 async function getInvoices(clientId) {
   requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${validClientId(clientId)}/invoices`);
-    return (res.data?.data || []).map(inv => ({
+    const invoices = await fetchCompleteClientCollection(clientId, "invoices");
+    return invoices.map(inv => ({
       id: inv.id,
       number: inv.number,
       status: inv.status,
@@ -142,8 +153,8 @@ async function getInvoices(clientId) {
 async function getTickets(clientId) {
   requireUpmindSettings();
   try {
-    const res = await client.get(`/admin/clients/${validClientId(clientId)}/tickets`);
-    return (res.data?.data || []).map(ticket => ({
+    const tickets = await fetchCompleteClientCollection(clientId, "tickets");
+    return tickets.map(ticket => ({
       id: ticket.id,
       subject: ticket.subject,
       status: ticket.status,
