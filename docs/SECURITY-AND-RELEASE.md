@@ -66,6 +66,10 @@ Official Upmind SDK guidance describes `limit`/`offset` pagination for list call
 
 Source: https://github.com/upmind/sdk-php#pagination
 
+## Concurrency guard for Upmind client provisioning
+
+Before any remote client-create POST, the legacy backend atomically claims a two-minute per-user MongoDB lease. A second local worker denied the lease does not provision. Persisting the new client ID requires the current unexpired lease token and an account still unlinked; the lease releases after the attempt, or expires after failure. The lock token and temporary password must not appear in logs or client responses. This is **not** a global guarantee against externally provisioned duplicate Upmind customers; verify the real provider's email+brand uniqueness/idempotency, search consistency and authenticated customer contract before activation.
+
 ## Upmind client exchange privacy
 
 The authenticated `GET /user/upmindClientId` route issues a short-lived client association token only when the request's verified JWT session has a linked Upmind record. Its response is `private, no-store`; missing or weak `UPMIND_SECRET` is treated as unavailable instead of signing with an invalid key. The shared secret should be at least 32 high-entropy characters and never appear in Git or logs. Token semantics remain part of the legacy Upmind integration and require confirmation against the actual consumer.
