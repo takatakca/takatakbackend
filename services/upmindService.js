@@ -1,6 +1,10 @@
 "use strict";
 const axios = require("axios");
 const { decrypt } = require("../utils/crypto");
+const Users = require("../models/User");
+const {
+  acquireProvisionLease, persistProvisionedClient, releaseProvisionLease,
+} = require("../utils/upmindProvisionLease");
 
 const UP_API = "https://api.upmind.io/api";
 const ADMIN_TOKEN = process.env.UPMIND_KEY;
@@ -214,12 +218,27 @@ async function ensureUpmindClient(user) {
       await user.save();
       return user;
     }
-    const created = await createClient(user, password);
-    const newId = created.id ?? created.data?.id;
-    user.upmindClientId = validClientId(newId);
-    user.encryptedPassword = undefined;
-    user.upmindRetryNeeded = false;
-    await user.save();
+    // Only one API worker may provision this legacy user at a time.
+    // A failed reservation does not touch the database state of the winner.
+    const lease = await acquireProvisionLease(Users, user._id);
+    if (!lease) {
+      user.upmindRetryNeeded = true;
+      return user;
+    }
+    try {
+      const created = await createClient(user, password);
+      const newId = validClientId(created.id ?? created.data?.id);
+      const saved = await persistProvisionedClient(Users, user._id, lease, newId);
+      if (!saved) throw new Error("Upmind association lease lost; manual review needed");
+      user.upmindClientId = newId;
+      user.encryptedPassword = undefined;
+      user.upmindRetryNeeded = false;
+    } finally {
+      // If release fails, the bounded lease expires automatically; never
+      // expose its secret token or falsely report a duplicate account.
+      await releaseProvisionLease(Users, user._id, lease)
+        .catch(() => console.error("Upmind provisioning lease cleanup pending"));
+    }
   } catch (err) {
     console.error("Upmind association pending review:", err.message);
     user.upmindRetryNeeded = true;
