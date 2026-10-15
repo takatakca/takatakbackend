@@ -36,6 +36,7 @@ jobs:
           node --check controller/userDashboard.js
           node --check middleware/authMiddleware.js
           node --check services/upmindService.js
+          node --check utils/upmindProvisionLease.js
           node --check utils/sendOtpToPhone.js
           node --check utils/sendOtpToEmail.js
           node --check utils/phoneUtils.js
