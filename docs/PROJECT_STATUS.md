@@ -46,6 +46,11 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - `GET /user/upmindClientId` is authenticated and now returns `Cache-Control: private, no-store` for token responses, rejects missing/unconfigured or too-short `UPMIND_SECRET` with 503, and binds the short-lived (5-minute) token to the request's authenticated user. `test/upmindSession.test.js` verifies private cache policy, owner, expiry and negative paths.
 - The 32-character minimum for the existing Upmind exchange secret is a new deployment prerequisite; verify secret presence and adequate length in the real host without copying its value to Git or logs.
 
+## Tracked-secret CI prevention gate (2026-10-15)
+- New `scripts/check-tracked-secrets.js` uses the Git index to check tracked files before `npm ci` in GitHub Actions. It blocks tracked `.env` credentials, private-key PEM headers, `.p12/.pfx` key containers and recognizable live token strings, without printing token material. `test/trackedSecrets.test.js` verifies these boundaries.
+- The **already exposed** `keys/private.pem` is temporarily pinned to its existing Git blob SHA and produces a warning, not a false claim of remediation. Any replacement at that path is rejected. Rotation of the old key remains the critical coordinated issue #2; do not commit replacement private material.
+- The check is a targeted prevention layer, not a complete replacement for GitHub secret scanning or a substitute for rotating all previously exposed credentials.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
