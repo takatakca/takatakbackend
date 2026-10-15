@@ -26,19 +26,25 @@ function findExactClientMatch(candidates, email, brandId) {
   const expectedEmail = String(email).trim().toLowerCase();
   const expectedBrand = String(brandId);
   const matches = candidates.filter(record =>
-    record && record.id !== undefined &&
+    record && isValidClientId(record.id) &&
     String(record.email || "").trim().toLowerCase() === expectedEmail &&
     String(record.brand_id ?? record.brand?.id ?? "") === expectedBrand
   );
   return matches.length === 1 ? matches[0] : null;
 }
 
+function isValidClientId(clientId) {
+  if (typeof clientId !== "string" && !(typeof clientId === "number" && Number.isSafeInteger(clientId) && clientId > 0)) {
+    return false;
+  }
+  return /^[A-Za-z0-9_-]{1,128}$/.test(String(clientId));
+}
+
 function validClientId(clientId) {
-  const value = String(clientId || "");
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+  if (!isValidClientId(clientId)) {
     throw new Error("Invalid Upmind client ID");
   }
-  return value;
+  return String(clientId);
 }
 
 // Upmind list endpoints paginate (limit/offset) and include a total count.
@@ -198,9 +204,8 @@ async function ensureUpmindClient(user) {
       return user;
     }
     const created = await createClient(user, password);
-    const newId = created.id || created.data?.id;
-    if (!newId) throw new Error("Upmind returned no client ID");
-    user.upmindClientId = String(newId);
+    const newId = created.id ?? created.data?.id;
+    user.upmindClientId = validClientId(newId);
     user.encryptedPassword = undefined;
     user.upmindRetryNeeded = false;
     await user.save();
