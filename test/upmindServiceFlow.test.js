@@ -149,3 +149,28 @@ test("Upmind only provisions from a verified complete empty search with valid re
   assert.equal(leaseWrites[0].update.$set.upmindClientId, "valid-provision-id");
   assert.equal(leaseWrites[1].update.$unset.upmindProvisionLock, 1);
 });
+
+test("a second worker without the MongoDB lease cannot POST a duplicate Upmind client", async t => {
+  const oldSecret = process.env.PASSWORD_ENCRYPT_SECRET;
+  process.env.PASSWORD_ENCRYPT_SECRET = "a".repeat(64);
+  t.after(() => {
+    if (oldSecret === undefined) delete process.env.PASSWORD_ENCRYPT_SECRET;
+    else process.env.PASSWORD_ENCRYPT_SECRET = oldSecret;
+  });
+  let posts = 0;
+  t.mock.method(Users, "findOneAndUpdate", () => ({
+    select: async () => null, // Another worker owns the lease.
+  }));
+  const service = isolatedUpmindService(t, {
+    get: async () => ({ data: { status: "ok", total: 0, data: [] } }),
+    async post() { posts++; throw new Error("must not create"); },
+  });
+  const user = pendingUser();
+  user.encryptedPassword = encrypt("not-a-real-password");
+  const result = await service.ensureUpmindClient(user);
+  assert.equal(result, user);
+  assert.equal(result.upmindClientId, null);
+  assert.equal(result.upmindRetryNeeded, true);
+  assert.equal(posts, 0);
+  assert.equal(user.saves, 0, "Losing worker must not overwrite winning association state");
+});
