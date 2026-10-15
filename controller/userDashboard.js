@@ -32,7 +32,9 @@ async function getUserDashboard(req, res) {
       }
     }
 
-    const failed = integrationStatus === "unavailable";
+    // A missing account link is not proof of zero orders, invoices or tickets.
+    // Only a successful Upmind response can provide numerical totals.
+    const failed = integrationStatus !== "available";
     const summary = {
       totalOrders: failed ? null : orders.length,
       totalInvoices: failed ? null : invoices.length,
