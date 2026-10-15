@@ -36,6 +36,11 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - When an Upmind client is already linked or matched by exact brand and email, the legacy temporary reversible `encryptedPassword` is cleared from the account record. AES-GCM ciphertext format remains compatible; the encryption secret is validated lazily as exact 32-byte hex and malformed ciphertext is rejected.
 - Tests `test/legacyCredential.test.js` cover correct query projection, email OTP selection, reversible encryption format and cleanup of stale credentials. This does **not** eliminate temporary password storage for customers pending initial Upmind provisioning; the canonical TAKATAK Auth cutover remains necessary.
 
+## Upmind paginated search correctness (2026-10-15)
+- Customer search now requests successive Upmind `limit`/`offset` pages and requires a consistent, explicit `total` before automatic exact-email/brand linking or creation. A missing count, malformed payload, changed page total, truncated page, or search exceeding 100 results is treated as **inconclusive** and marked for review instead of silently assuming zero customers.
+- Exact-email/brand matching rejects null, invalid, or malformed Upmind customer IDs. Newly created accounts must also return a valid client ID before association is saved.
+- `test/upmind.test.js` adds pagination, malformed/empty distinction, ambiguous response, and invalid ID regressions. Tests mock provider responses; the live Upmind tenant/API contract and concurrent cross-worker provisioning still require provider-backed verification.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
