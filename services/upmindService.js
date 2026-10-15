@@ -41,6 +41,40 @@ function validClientId(clientId) {
   return value;
 }
 
+// Upmind list endpoints paginate (limit/offset) and include a total count.
+// A missing/partial result set is never proof that an account does not exist.
+async function collectCompleteClientSearch(fetchPage, options = {}) {
+  const limit = options.limit || 25;
+  const maxResults = options.maxResults || 100;
+  if (!Number.isInteger(limit) || !Number.isInteger(maxResults) ||
+      limit < 1 || maxResults < limit) {
+    throw new RangeError("Invalid Upmind search pagination limits");
+  }
+
+  const all = [];
+  let total = null;
+  while (total === null || all.length < total) {
+    const response = await fetchPage({ limit, offset: all.length });
+    if (!response || typeof response !== "object" ||
+        (response.status !== undefined && response.status !== "ok") ||
+        !Array.isArray(response.data) ||
+        !Number.isSafeInteger(response.total) || response.total < 0) {
+      throw new Error("Incomplete Upmind client search response");
+    }
+    if (total !== null && total !== response.total) {
+      throw new Error("Upmind client search changed during pagination");
+    }
+    total = response.total;
+    if (total > maxResults || response.data.length > limit ||
+        all.length + response.data.length > total ||
+        (total > all.length && response.data.length === 0)) {
+      throw new Error("Upmind client search pagination is incomplete or exceeds review limit");
+    }
+    all.push(...response.data);
+  }
+  return all;
+}
+
 async function createClient(user, plainPassword) {
   requireUpmindSettings();
   if (!plainPassword) throw new Error("Cannot provision Upmind without verified credentials");
@@ -127,11 +161,18 @@ async function ensureUpmindClient(user) {
   }
   try {
     requireUpmindSettings();
-    const res = await client.get("/admin/clients", {
-      params: { search: user.email || user.phone, brand_id: UPMIND_BRAND_ID },
-    });
-
-    const candidates = Array.isArray(res.data?.data) ? res.data.data : [];
+    // Search all returned pages; do not provision a duplicate client when
+    // the provider gave only page one, a malformed response, or unknown total.
+    const candidates = await collectCompleteClientSearch(async page =>
+      (await client.get("/admin/clients", {
+        params: {
+          search: user.email || user.phone,
+          brand_id: UPMIND_BRAND_ID,
+          limit: page.limit,
+          offset: page.offset,
+        },
+      })).data
+    );
     const matched = findExactClientMatch(candidates, user.email, UPMIND_BRAND_ID);
     if (matched) {
       user.upmindClientId = String(matched.id);
@@ -173,4 +214,5 @@ async function ensureUpmindClient(user) {
 
 module.exports = {
   createClient, getOrders, getInvoices, getTickets, ensureUpmindClient, findExactClientMatch,
+  collectCompleteClientSearch,
 };
