@@ -57,6 +57,11 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - New isolated mocked-HTTP tests: `test/upmindCollections.test.js` covers invoices on a second page, malformed data, a missing page, empty verified totals, client-ID rejection and bounded result sets. `test/userDashboard.test.js` checks linked-owner totals, unlinked accounts and integration errors without using production customer records.
 - These are code/CI checks only. Real Upmind collection schema, large accounts and production tenant scoping still need authorized provider evidence before deployment.
 
+## Concurrent Upmind provisioning protection (2026-10-15)
+- Upmind customer creation now requires a per-user, atomic MongoDB provisioning lease before its remote POST. Each lease stores an opaque UUID and a two-minute expiry; competing backend workers are denied the create path, and only the current non-expired lease holder may commit the returned Upmind ID with a guarded update. The lease is released on completion or expires after interruption.
+- `test/upmindProvisionLease.test.js` verifies atomic filters, expiry, ownership and guarded persistence. `test/upmindServiceFlow.test.js` verifies a losing worker cannot trigger a second remote POST. CI also syntax-checks `utils/upmindProvisionLease.js`.
+- **Limit:** this prevents simultaneous creations for the same MongoDB user within this backend, not independent external systems creating the same Upmind email/brand, nor eventual-consistency races between sequential attempts. Confirm provider-level uniqueness/idempotency using an authorized test tenant before production enrollment.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
