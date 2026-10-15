@@ -2,6 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const axios = require("axios");
+const Users = require("../models/User");
 const { encrypt } = require("../utils/crypto");
 
 function isolatedUpmindService(t, fakeHttp) {
@@ -112,6 +113,17 @@ test("Upmind only provisions from a verified complete empty search with valid re
     else process.env.PASSWORD_ENCRYPT_SECRET = oldSecret;
   });
   const writes = [];
+  const leaseWrites = [];
+  t.mock.method(Users, "findOneAndUpdate", (filter, update) => {
+    assert.equal(filter._id, "507f1f77bcf86cd799439011");
+    assert.equal(filter.upmindClientId, null);
+    const token = update.$set.upmindProvisionLock;
+    return { select: async () => ({ upmindProvisionLock: token }) };
+  });
+  t.mock.method(Users, "updateOne", async (filter, update) => {
+    leaseWrites.push({ filter, update });
+    return { matchedCount: 1, modifiedCount: 1 };
+  });
   const service = isolatedUpmindService(t, {
     get: async (_route, { params }) => {
       assert.equal(params.offset, 0);
@@ -132,5 +144,8 @@ test("Upmind only provisions from a verified complete empty search with valid re
   assert.equal(user.upmindClientId, "valid-provision-id");
   assert.equal(user.encryptedPassword, undefined);
   assert.equal(user.upmindRetryNeeded, false);
-  assert.equal(user.saves, 1);
+  assert.equal(user.saves, 0, "Association uses a guarded MongoDB update");
+  assert.equal(leaseWrites.length, 2, "Persist then release the acquired lease");
+  assert.equal(leaseWrites[0].update.$set.upmindClientId, "valid-provision-id");
+  assert.equal(leaseWrites[1].update.$unset.upmindProvisionLock, 1);
 });
