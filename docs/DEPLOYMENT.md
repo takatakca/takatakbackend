@@ -22,6 +22,12 @@ The backend exposes `GET /health/version` with JSON `{ "revision": "<40-hex-SHA>
 
 Neither this route nor `/health/live` verifies Upmind, MongoDB permissions, token rotation, or that clients were migrated. Continue readiness and authenticated smoke checks separately.
 
+## Upmind billing completeness and dashboard smoke checks
+
+The backend requests complete paginated orders, invoices and tickets via `limit`/`offset` from the currently authenticated user's validated `upmindClientId`. The response must provide array `data` and a stable integer `total`; ambiguous or incomplete data is treated as unavailable rather than as a confirmed zero. Pagination is bounded at 1,000 records per collection; larger collections require a reviewed provider contract and a follow-up scalability change, never partial figures presented as complete.
+
+For the verified production host, test a linked authorized owner account with more than one page of invoices/orders/tickets and confirm correct totals, owner isolation, and unpaid/open statuses. Test an unlinked account: the dashboard should have `integrationStatus: "not_linked"` and `null` summary counts. Test upstream failure: `integrationStatus: "unavailable"` and `null` summary counts. Do not claim Upmind is operational solely because an isolated mock test passed.
+
 ## Read-only MongoDB session-index audit
 
 With authorized production database access, run `npm run audit:sessions` to inspect the current `sessions` collection TTL indexes without changing any data or indexes. Exit 0 indicates the required `expiresAt` TTL is present and the obsolete `createdAt` TTL is absent; exit 2 signals an index migration is required; exit 1 indicates missing access or audit failure. Before any manual index change, verify the correct database, backup, running clients and procedure in `docs/SECURITY-AND-RELEASE.md`.
