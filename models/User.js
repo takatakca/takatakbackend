@@ -66,6 +66,9 @@ role:{
 },
 upmindClientId: { type: String, default: null, select: false },
 upmindRetryNeeded: { type: Boolean, default: false, select: false },
+// Lease prevents concurrent local workers from provisioning the same Upmind client.
+upmindProvisionLock: { type: String, select: false, default: null },
+upmindProvisionLockExpiresAt: { type: Date, select: false, default: null },
 
 
 phoneVerified: { type: Boolean, default: false },
