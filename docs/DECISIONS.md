@@ -36,6 +36,9 @@ _Last updated: 2026-10-14._
 | D-026 | Test the actual Upmind association service with isolated mocked HTTP responses, not just pure matching helpers. | Prove missing/partial results cannot trigger a POST, valid later-page links are reused, and complete empty results allow one controlled provisioning attempt. |
 | D-027 | Protect the authenticated legacy Upmind client-token exchange from caching and weak/missing signing configuration. | Issue no-store five-minute owner-bound tokens, return controlled errors for unlinked users or insufficient server secret, and verify consuming integration before production cutover. |
 
+| D-028 | Run targeted tracked-secret detection before dependency installation in CI. | Reject new private PEM, tracked environment files, key containers and recognizable tokens; do not mistake a passing guard for credential rotation. |
+| D-029 | Pin the already-exposed `keys/private.pem` to its immutable original Git blob while live consumers migrate. | Avoid accidentally accepting a new leaked signing key or breaking a currently unidentified deployment; actual old key remains compromised until coordinated rotation and repo cleanup. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
