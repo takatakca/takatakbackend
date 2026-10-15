@@ -10,7 +10,7 @@ test("tracks known historic key only at its original immutable blob", () => {
   assert.match(gitBlobSha(Buffer.from("example")), /^[a-f0-9]{40}$/);
   assert.match(inspectTrackedFile("keys/private.pem", "not the original key")[0],
     /no new key may be committed/);
-  const pem = ["-----BEGIN", "RSA PRIVATE KEY-----", "invalid-test", "-----END RSA PRIVATE KEY-----"].join("\n");
+  const pem = ["-----BEGIN" + " RSA PRIVATE KEY-----", "invalid-test", "-----END RSA PRIVATE KEY-----"].join("\n");
   assert.ok(inspectTrackedFile("keys/other.pem", pem).length > 0);
   assert.ok(inspectTrackedFile("keys/private.pem", pem).length > 0);
 });
