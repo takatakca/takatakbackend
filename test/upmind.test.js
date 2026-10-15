@@ -79,3 +79,16 @@ test("truncated and unbounded Upmind searches block duplicate provisioning", asy
     ({ data: [], total: 0 }), { limit: 20, maxResults: 10 }
   ), RangeError);
 });
+
+test("invalid Upmind identifiers are never linked to the account", () => {
+  const ownerEmail = "owner@example.com";
+  const brand = "our-brand";
+  for (const invalid of [null, undefined, "", 0, -1, {}, [], "bad/id", " ".repeat(3), "A".repeat(129)]) {
+    assert.equal(findExactClientMatch([
+      { id: invalid, email: ownerEmail, brand_id: brand },
+    ], ownerEmail, brand), null);
+  }
+  assert.equal(findExactClientMatch([
+    { id: "valid-uuid_123", email: ownerEmail, brand_id: brand },
+  ], ownerEmail, brand).id, "valid-uuid_123");
+});
