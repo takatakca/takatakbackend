@@ -30,6 +30,10 @@ With authorized production database access, run `npm run audit:sessions` to insp
 
 The JWKS endpoint now rereads the configured `PUBLIC_KEY_PATH` on each request and sends `Cache-Control: public, max-age=60`. After a controlled rotation, verify `GET /auth/well-known/jwks.json` publishes the new `kid` and public RSA modulus, and newly issued JWTs use the corresponding private key. Plan consumer cache overlap and token invalidation; publishing a new JWKS does not on its own revoke the compromised old signing key. Do not assume all consumers refresh their verification keys immediately.
 
+## CI tracked-secret prevention
+
+The `Backend CI` workflow executes `node scripts/check-tracked-secrets.js` before `npm ci`. New tracked `.env` files, private-key PEM headers, key containers and recognizable live tokens fail the build; detected values are not printed. The historically exposed `keys/private.pem` is recognized only at its exact old blob SHA and triggers a warning tied to issue #2, **not a successful rotation**. A new key must be installed through external host secrets, never by replacing that repository file. Review GitHub secret scanning and run the coordinated rotation checklist before any production release.
+
 ## Mandatory offline release preflight
 
 Before initiating a deployment on a **verified** production service, run `NODE_ENV=production npm run check:release` in its real configured environment. The check verifies required variable presence, key-pair matching and non-use of the publicly exposed bundled signing key. It does not display credentials or contact remote services. A green result does **not** validate MongoDB availability, tenant authorizations or deployment. Do not fake values to make it pass; fix production secret configuration first. The legacy RSA key remains exposed until coordinated replacement (issue #2).
