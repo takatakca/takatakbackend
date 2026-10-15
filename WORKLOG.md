@@ -3,6 +3,8 @@
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
+- 2026-10-15 | ChatGPT | main | active | Fail closed for malformed/paginated Upmind customer search before account provisioning; add regression coverage and evidence-based handoff | verify exact-SHA CI, finish queue/docs, production and compromised RSA key remain gated
+
 - 2026-10-14 | ChatGPT | main | done (live Upmind validation pending) | Loaded hidden Upmind ID during phone OTP to avoid duplicate provisioning, cleared temporary encrypted password on known linked accounts, hardened legacy AES key/ciphertext validation, added tests and updated all five docs | check final matching-SHA CI, verify with real Upmind tenant and coordinate key rotation #2, Auth PR #1, confirmed production hosting and MongoDB TTL audit
 
 - 2026-10-14 | ChatGPT | main | done (production gated; final CI pending) | JWKS now re-reads current public key with bounded cache; expired OTP cleanup conditionally matches stale hash; added concurrency regression tests | check exact latest CI SHA, confirm actual hosting and coordinate issue #2 key rotation, PR #1 Auth cutover and MongoDB TTL audit
