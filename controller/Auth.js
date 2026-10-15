@@ -358,31 +358,31 @@ const requestNewCode = async (req, res) => {
 
 
 const createUpmindSession = async (req, res) => {
+  // This is a user-specific credential, not a cacheable customer identifier.
+  res.set("Cache-Control", "private, no-store");
+  if (!req.user?.id) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  if (!process.env.UPMIND_SECRET || process.env.UPMIND_SECRET.length < 32) {
+    return res.status(503).json({ error: "Upmind session integration unavailable" });
+  }
   try {
-    // 1. Make sure user is authenticated (e.g. req.user is set by your auth middleware)
-    const userId = req.user.id;
-
-    // 2. Fetch upmindClientId securely
-    const user = await Users.findById(userId).select("+upmindClientId");
+    const user = await Users.findById(req.user.id).select("+upmindClientId");
     if (!user || !user.upmindClientId) {
-      return res.status(404).json({ message: "Upmind client not found" });
+      return res.status(404).json({ error: "Upmind client not linked" });
     }
 
-    // 3. Create a short-lived token wrapping upmindClientId
+    // Legacy signed client exchange, only for the verified JWT session's user.
+    // The existing provider-specific token payload is preserved until migration.
     const token = jwt.sign(
-      {
-        upmindId: user.upmindClientId,
-        sub: user._id.toString(),
-      },
-      process.env.UPMIND_SECRET, // keep this private
-      { expiresIn: "5m" } // only valid for 5 minutes
+      { upmindId: user.upmindClientId, sub: String(user._id) },
+      process.env.UPMIND_SECRET,
+      { expiresIn: "5m" }
     );
-
-    // 4. Return token to frontend
-    res.json({ upmindToken: token });
+    return res.json({ upmindToken: token });
   } catch (err) {
-    console.error("Error creating Upmind session:", err);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Upmind session issuance unavailable:", err.message);
+    return res.status(503).json({ error: "Upmind session integration unavailable" });
   }
 };
 
