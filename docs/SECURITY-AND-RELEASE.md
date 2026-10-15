@@ -14,6 +14,10 @@ The public repository contains `keys/private.pem` in tracked history. Assume the
 
 **Do not delete or replace the existing key in a live legacy service without coordinated cutover**: that would break signing and token validation, and does not undo earlier exposure. The repository does not store the replacement secret.
 
+## Tracked-secret prevention guard
+
+GitHub Actions runs `node scripts/check-tracked-secrets.js` before installing dependencies. The script scans Git-tracked files for accidental credential artifacts and rejects changed/new private keys, confidential environment files and recognizable access tokens without logging their actual contents. The previously committed `keys/private.pem` remains in the repository history and is **still compromised**; it is temporarily recognized by one pinned Git blob SHA solely to avoid disguising it as a new secret or silently replacing it. This warning is not an exemption for rotation, and the old key must be retired through issue #2. Enable or review GitHub repository secret scanning as a complementary control, where available.
+
 ## MongoDB TTL migration
 
 The original Session model created a TTL index on `createdAt` expiring after 7 days, even though refresh session TTL defaults to 30 days. The new model sets the TTL on `expiresAt` (the actual session expiry). Mongoose will not automatically delete the old MongoDB index.
