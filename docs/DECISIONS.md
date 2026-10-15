@@ -30,6 +30,9 @@ _Last updated: 2026-10-14._
 | D-022 | Legacy phone OTP must load select:false Upmind client ID before attempting account association. | Prevent duplicate customer provisioning when a previously linked account signs in by phone. |
 | D-023 | Clear temporary reversible Upmind password once account association is established; validate AES-GCM secret and serialized format on use. | Minimize unnecessary retained credentials without breaking existing ciphertext records; eliminate remaining reversible password storage through central Auth migration. |
 
+| D-024 | Do not provision Upmind customers from an incomplete paginated search. | Follow all bounded `limit`/`offset` pages, require consistent integer `total`, and mark uncertain results for review; avoid duplicate or wrong-tenant links. |
+| D-025 | Require valid provider client IDs on both existing and newly created Upmind associations. | Never persist null, malformed or arbitrary-object identifiers as a customer's billing account. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
