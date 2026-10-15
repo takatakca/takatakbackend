@@ -50,6 +50,10 @@ Find last known healthy *deployed* SHA in provider history and revert/redeploy u
 
 The Upmind client listing is paginated. The backend sends `limit`/`offset`, requires array `data` and an integer `total`, and follows all pages (bounded at 100 returned candidates); incomplete results are flagged for manual review rather than treated as an empty customer search. Before shipping to a real tenant, inspect a controlled provider response without personal data in logs and confirm `status`, `data`, `total`, `id`, `brand_id`, and page consistency. If the provider changes its contract or returns more than 100 matching candidates, review the association flow rather than bypassing the guard. Do not provision or re-link real customers solely from a first-page search.
 
+## Private Upmind client exchange verification
+
+The authenticated `GET /user/upmindClientId` endpoint issues a legacy five-minute HS256 JWT associated with the current user. It sends `Cache-Control: private, no-store`; only linked users receive a token, and missing or weak (under 32 characters) `UPMIND_SECRET` returns 503. Before enabling this feature in an authorized production host, check that `UPMIND_SECRET` is configured with a high-entropy secret of sufficient length (inspect presence/strength, **not its actual value**), that the consuming integration accepts this legacy token format, and that no shared cache stores responses.
+
 ## Legacy Upmind smoke test after release
 
 With a controlled test identity already associated with Upmind, exercise both email and phone legacy OTP login (if still enabled), then confirm no additional Upmind customer was provisioned and the dashboard remains scoped to that owner's customer ID. The `upmindClientId` field is not returned by default Mongo queries: both verification flows explicitly load it before `ensureUpmindClient`. Check existing reversible temporary passwords are cleared from linked accounts without logging their contents. Do not use real customer credentials or mutate production records during the smoke test.
