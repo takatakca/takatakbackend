@@ -62,6 +62,10 @@ Official Upmind SDK guidance describes `limit`/`offset` pagination for list call
 
 Source: https://github.com/upmind/sdk-php#pagination
 
+## Upmind client exchange privacy
+
+The authenticated `GET /user/upmindClientId` route issues a short-lived client association token only when the request's verified JWT session has a linked Upmind record. Its response is `private, no-store`; missing or weak `UPMIND_SECRET` is treated as unavailable instead of signing with an invalid key. The shared secret should be at least 32 high-entropy characters and never appear in Git or logs. Token semantics remain part of the legacy Upmind integration and require confirmation against the actual consumer.
+
 ## Known legacy debt
 
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
