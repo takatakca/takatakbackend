@@ -41,6 +41,11 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - Exact-email/brand matching rejects null, invalid, or malformed Upmind customer IDs. Newly created accounts must also return a valid client ID before association is saved.
 - `test/upmind.test.js` adds pagination, malformed/empty distinction, ambiguous response, and invalid ID regressions. Tests mock provider responses; the live Upmind tenant/API contract and concurrent cross-worker provisioning still require provider-backed verification.
 
+## Full mocked Upmind service flow and token exchange (2026-10-15)
+- `test/upmindServiceFlow.test.js` exercises the actual `ensureUpmindClient` service with an injected mock HTTP client: malformed list searches never create customers; exact brand/email matches found on later pages link safely; wrong-brand results never auto-provision; complete zero-result searches can provision a new customer once with a valid returned ID. No production API requests or real customer credentials were used.
+- `GET /user/upmindClientId` is authenticated and now returns `Cache-Control: private, no-store` for token responses, rejects missing/unconfigured or too-short `UPMIND_SECRET` with 503, and binds the short-lived (5-minute) token to the request's authenticated user. `test/upmindSession.test.js` verifies private cache policy, owner, expiry and negative paths.
+- The 32-character minimum for the existing Upmind exchange secret is a new deployment prerequisite; verify secret presence and adequate length in the real host without copying its value to Git or logs.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
