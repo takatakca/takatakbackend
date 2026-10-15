@@ -33,6 +33,9 @@ _Last updated: 2026-10-14._
 | D-024 | Do not provision Upmind customers from an incomplete paginated search. | Follow all bounded `limit`/`offset` pages, require consistent integer `total`, and mark uncertain results for review; avoid duplicate or wrong-tenant links. |
 | D-025 | Require valid provider client IDs on both existing and newly created Upmind associations. | Never persist null, malformed or arbitrary-object identifiers as a customer's billing account. |
 
+| D-026 | Test the actual Upmind association service with isolated mocked HTTP responses, not just pure matching helpers. | Prove missing/partial results cannot trigger a POST, valid later-page links are reused, and complete empty results allow one controlled provisioning attempt. |
+| D-027 | Protect the authenticated legacy Upmind client-token exchange from caching and weak/missing signing configuration. | Issue no-store five-minute owner-bound tokens, return controlled errors for unlinked users or insufficient server secret, and verify consuming integration before production cutover. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
