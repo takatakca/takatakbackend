@@ -42,6 +42,8 @@ _Last updated: 2026-10-14._
 | D-030 | Paginate owner-scoped Upmind billing lists and reject incomplete/malformed `data` or `total` before calculating counts. | A first page or an incomplete HTTP 200 response must not masquerade as a fully verified list of orders, invoices or tickets; defer counts on provider errors. |
 | D-031 | Return unknown (`null`) dashboard billing metrics for unlinked Upmind accounts as well as unavailable integrations. | Missing linkage is not proof that a customer owes zero invoices or has zero orders; only completed Upmind responses support numeric totals. |
 
+| D-032 | Use a two-minute per-user MongoDB compare-and-set lease before legacy Upmind client creation; persist the returned ID only for the still-active lease owner. | Prevent simultaneous backend workers creating duplicate remote customers and overwriting linkage; interrupted locks expire, but provider uniqueness/idempotency and cross-system races still need verification. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
