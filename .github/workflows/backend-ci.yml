@@ -22,6 +22,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Prevent newly tracked credentials
+        run: node scripts/check-tracked-secrets.js
       - run: npm ci
       - run: npm test
       - name: Syntax checks
@@ -44,3 +46,4 @@ jobs:
           node --check utils/legacyOtpAccount.js
           node --check utils/crypto.js
           node --check utils/releaseRevision.js
+          node --check scripts/check-tracked-secrets.js
