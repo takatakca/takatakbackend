@@ -56,6 +56,12 @@ Legacy `upmindClientId` and `encryptedPassword` are both `select:false` fields. 
 
 When an Upmind association is already established, `ensureUpmindClient` now clears any loaded temporary encrypted password before returning; exact search matches clear it as well. Existing stored AES-GCM records preserve the original `iv:tag:ciphertext` representation, while missing/invalid `PASSWORD_ENCRYPT_SECRET` produces a controlled error at use. **Not yet complete:** unlinked customers may retain reversible temporary passwords for legacy Upmind account creation. Elimination of that workflow requires an approved identity/payment integration migration and verified provider contract. Do not bulk-rewrite or delete customer passwords without a migration plan.
 
+## Upmind paginated lookup safety
+
+Official Upmind SDK guidance describes `limit`/`offset` pagination for list calls. The legacy integration now refuses to interpret an invalid, uncounted or partial list response as proof that an email has no existing client. It requires `data` and consistent numeric `total`, paginates up to 100 candidates, accepts only one exact email+brand+valid-ID match, and flags uncertain responses for review. Provider-specific live validation is still necessary, especially if `total` is global rather than search-filtered, or if many records are returned. An empty **complete** search is not a guarantee against simultaneous provision attempts by other processes.
+
+Source: https://github.com/upmind/sdk-php#pagination
+
 ## Known legacy debt
 
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
