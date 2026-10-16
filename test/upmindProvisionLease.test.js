@@ -3,7 +3,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const Users = require("../models/User");
 const {
-  acquireProvisionLease, persistProvisionedClient, releaseProvisionLease, DEFAULT_LEASE_MS,
+  acquireProvisionLease, beginProvisionAttempt, flagProvisionReview,
+  persistProvisionedClient, releaseProvisionLease, DEFAULT_LEASE_MS,
 } = require("../utils/upmindProvisionLease");
 
 test("Upmind lease is per-user, expires automatically and uses atomic compare-and-set", async t => {
@@ -64,4 +65,51 @@ test("invalid lease arguments are rejected before touching the account", async (
   await assert.rejects(acquireProvisionLease(missingModel, "user", new Date(), 0), TypeError);
   await assert.rejects(persistProvisionedClient({}, "user", null, "remote"), TypeError);
   await releaseProvisionLease({}, "user", null);
+});
+
+test("a new remote create is marked durably and only once per legacy user", async t => {
+  const now = new Date("2026-10-16T12:00:00Z");
+  const calls = [];
+  t.mock.method(Users, "updateOne", async (filter, update) => {
+    calls.push({ filter, update });
+    return { matchedCount: calls.length === 1 ? 1 : 0 };
+  });
+  assert.equal(await beginProvisionAttempt(Users, "test-user", "lease-1", now), true);
+  assert.equal(await beginProvisionAttempt(Users, "test-user", "lease-1", now), false);
+  assert.deepEqual(calls[0].filter, {
+    _id: "test-user",
+    upmindClientId: null,
+    upmindProvisionLock: "lease-1",
+    upmindProvisionLockExpiresAt: { $gt: now },
+    upmindProvisionAttemptedAt: null,
+  });
+  assert.equal(calls[0].update.$set.upmindProvisionAttemptedAt, now);
+  assert.equal(calls[0].update.$set.upmindRetryNeeded, true);
+});
+
+test("manual-review writes require the current unexpired lease and an unlinked user", async t => {
+  let query, update;
+  t.mock.method(Users, "updateOne", async (filter, values) => {
+    query = filter;
+    update = values;
+    return { matchedCount: 1 };
+  });
+  const now = new Date("2026-10-16T12:00:00Z");
+  await flagProvisionReview(Users, "user", "own-token", now);
+  assert.equal(query.upmindClientId, null);
+  assert.equal(query.upmindProvisionLock, "own-token");
+  assert.deepEqual(query.upmindProvisionLockExpiresAt, { $gt: now });
+  assert.equal(update.$set.upmindRetryNeeded, true);
+  assert.equal(await flagProvisionReview(Users, "user", null, now), undefined);
+});
+
+test("persisting a verified exact Upmind match clears an old uncertain-create marker", async t => {
+  let update;
+  t.mock.method(Users, "updateOne", async (_filter, values) => {
+    update = values;
+    return { matchedCount: 1 };
+  });
+  assert.equal(await persistProvisionedClient(Users, "user", "token", "known-remote"), true);
+  assert.equal(update.$unset.upmindProvisionAttemptedAt, 1);
+  assert.equal(update.$unset.encryptedPassword, 1);
 });
