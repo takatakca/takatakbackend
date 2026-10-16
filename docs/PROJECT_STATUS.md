@@ -68,6 +68,12 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - Retry-state updates use lease-guarded MongoDB updates instead of saving potentially stale user documents. Mocked tests cover concurrent/late workers, uncertain POST followed by retry, successful reconciliation, and owner-only persisted state. These are not live provider tests.
 - **Remaining caveat:** existing legacy records previously created without this marker and independent systems creating Upmind customers still need provider-side uniqueness/idempotency checks. A manual support workflow must reconcile uncertain attempts before resetting this marker.
 
+## Atomic legacy OTP issuance and delivery order (2026-10-16)
+- `/auth/login` and `/auth/resend-code` now reserve their shared 30-second SMS/email cooldown through one MongoDB-atomic `updateOne` on `lastOtpRequestedAt`. Concurrent login/resend calls for the same user cannot both request a provider send. Phone flow reserves the timestamp without modifying any email OTP hash.
+- For email login/resend, a fresh cryptographically generated six-digit OTP's bcrypt hash, five-minute expiry, attempts reset and the cooldown timestamp are persisted atomically **before** SendGrid delivery. An email delivery failure returns HTTP 503 and does not undo the cooldown; the user can retry after 30 seconds.
+- Registration now validates/normalizes email and phone, persists the new record and email OTP hash before SendGrid delivery, handles DB duplicate-key errors as HTTP 409, and returns HTTP 503 with a recovery instruction when the saved account's delivery fails. This preserves the existing legacy Upmind password staging for now; its retirement remains PR #1.
+- New `utils/legacyOtpIssuance.js` and `test/legacyOtpIssuance.test.js`, updated `test/legacyLogin.test.js` and CI syntax checks; no real SendGrid/Twilio or production MongoDB used.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
