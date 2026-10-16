@@ -51,6 +51,9 @@ _Last updated: 2026-10-14._
 | D-036 | Share an atomic MongoDB `lastOtpRequestedAt` compare-and-set reservation between legacy login and resend across phone/email channels. | Separate read/check/user.save operations let concurrent calls send multiple OTPs; a single DB operation limits one request per 30 seconds per account. |
 | D-037 | Persist the email OTP hash, expiry and attempt reset before handing the code to SendGrid; persist registration before mailing its first code. | A delivery must not precede a durable verifiable code or account. Provider errors keep the 30-second cooldown; a saved but undelivered registration must recover through resend, not duplicate registration. |
 
+| D-038 | Resolve SMS OTP account lookup by requesting at most two exact normalized phone matches and reject multiple matches (HTTP 409). | Twilio proves control of a phone, not ownership of any particular account when a phone is shared; arbitrary `findOne` can grant the wrong legacy identity. |
+| D-039 | Add a read-only aggregate collision/index audit before enforcing a unique phone index in legacy MongoDB. | Existing phone records might have duplicates or erroneous historic country codes; a premature index creation could fail or disrupt production, so require ownership review, backup and approved migration first. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
