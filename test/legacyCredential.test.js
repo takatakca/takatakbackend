@@ -9,12 +9,13 @@ const { ensureUpmindClient } = require("../services/upmindService");
 
 test("phone OTP loads hidden Upmind account linkage rather than creating duplicate clients", async t => {
   let query, projection;
-  t.mock.method(Users, "findOne", filter => {
+  t.mock.method(Users, "find", filter => {
     query = filter;
     return {
+      limit(count) { assert.equal(count, 2); return this; },
       select(fields) {
         projection = fields;
-        return Promise.resolve({ phone: "+15145550184", upmindClientId: "existing-client" });
+        return Promise.resolve([{ phone: "+15145550184", upmindClientId: "existing-client" }]);
       },
     };
   });
