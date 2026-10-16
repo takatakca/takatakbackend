@@ -3,6 +3,8 @@
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
+- 2026-10-16 | ChatGPT | main | active | Close Upmind stale-search and uncertain-create duplication races with lease-before-search plus durable attempt gate | add regression tests, verify matching CI, update all five docs and handoff
+
 - 2026-10-15 | ChatGPT | main | done (live Upmind/DB validation pending) | Added two-minute per-user MongoDB CAS lease, guarded Upmind client association persistence, losing-worker no-POST regression and tests; deployment notes updated | verify latest exact-SHA CI and diagnose failures; test real provider tenant, key rotation #2 and confirmed backend host
 
 - 2026-10-15 | ChatGPT | main | done (live Upmind verification pending) | Fetch complete Upmind billing collections and report null dashboard totals on unlinked/invalid provider data; new mocked HTTP and owner dashboard regression tests passed CI 38774066176 | validate real provider schema and deployment after host selection
