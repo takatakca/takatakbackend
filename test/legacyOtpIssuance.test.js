@@ -158,3 +158,52 @@ test("registration database failure never delivers an unusable verification code
   assert.equal(res.statusCode, 409);
   assert.equal(sends, 0);
 });
+
+test("registration keeps the saved account available for resend after email delivery outage", async t => {
+  let committed;
+  mockMail(t, async () => { throw new Error("Simulated SendGrid outage"); });
+  t.mock.method(Users, "findOne", async () => null);
+  t.mock.method(Users.prototype, "save", async function () {
+    committed = this;
+    return this;
+  });
+  const previousSecret = process.env.PASSWORD_ENCRYPT_SECRET;
+  process.env.PASSWORD_ENCRYPT_SECRET = "a".repeat(64);
+  t.after(() => {
+    if (previousSecret === undefined) delete process.env.PASSWORD_ENCRYPT_SECRET;
+    else process.env.PASSWORD_ENCRYPT_SECRET = previousSecret;
+  });
+  const res = response();
+  await register({ body: {
+    firstName: "Unsent", lastName: "Account",
+    email: "UNSENT@example.test", username: "unsent-account",
+    phone: "5145550184", password: "test-only-password",
+  } }, res);
+  assert.equal(res.statusCode, 503);
+  assert.ok(committed?._id);
+  assert.equal(String(res.body.userId), String(committed._id));
+  assert.ok(committed.userotp, "A code was persisted before the external provider failed");
+  assert.ok(committed.lastOtpRequestedAt);
+  assert.match(res.body.error, /registered but verification email delivery failed/i);
+});
+
+test("atomic email issuance compares cooldown timestamp instead of stale document save", async () => {
+  const now = new Date("2026-10-16T10:00:00Z");
+  let last = new Date(now.getTime() - COOLDOWN_MS);
+  let sendsReserved = 0;
+  const db = {
+    async updateOne(filter, changes) {
+      const cutoff = filter.$or.find(x => x.lastOtpRequestedAt?.$lte)?.lastOtpRequestedAt.$lte;
+      if (last !== null && last > cutoff) return { matchedCount: 0 };
+      last = changes.$set.lastOtpRequestedAt;
+      sendsReserved++;
+      return { matchedCount: 1 };
+    },
+  };
+  const [a, b] = await Promise.all([
+    reserveLegacyOtpRequest(db, id, { now, emailHash: "hash-a" }),
+    reserveLegacyOtpRequest(db, id, { now, emailHash: "hash-b" }),
+  ]);
+  assert.equal(Number(a) + Number(b), 1);
+  assert.equal(sendsReserved, 1);
+});
