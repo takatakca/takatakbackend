@@ -86,6 +86,12 @@ The authenticated `GET /user/upmindClientId` endpoint issues a legacy five-minut
 
 With a controlled test identity already associated with Upmind, exercise both email and phone legacy OTP login (if still enabled), then confirm no additional Upmind customer was provisioned and the dashboard remains scoped to that owner's customer ID. The `upmindClientId` field is not returned by default Mongo queries: both verification flows explicitly load it before `ensureUpmindClient`. Check existing reversible temporary passwords are cleared from linked accounts without logging their contents. Do not use real customer credentials or mutate production records during the smoke test.
 
+## Read-only legacy phone-collision audit and controlled uniqueness migration
+
+Before allowing legacy phone OTP in the verified backend environment, run `npm run audit:phones` against the **correct authorized MongoDB** with `MONGO_URI` and read permission for `aggregate` and `listIndexes`. The audit disables automatic Mongoose indexes, does not alter records, and prints only aggregate counts: total accounts, distinct phone values, collision groups/accounts, and full unique phone-index presence. Exit 0 means zero collisions **and** a global unique index is already present. Exit 2 means existing duplicates or missing index need review. Exit 1 means audit/configuration error. Do not print/query/export customer phone numbers in CI logs or user-facing reports.
+
+The current schema lacks `phone` uniqueness. New SMS login, resend and verification fail closed with HTTP 409 when the phone maps to two or more existing users, but this alone does not prevent races during new registrations. If collisions are reported: confirm genuine owners individually, create an authorized backup, agree on the canonical TAKATAK Auth migration and any legacy phone re-association, then separately plan an approved unique index migration after duplicates are resolved. Do not assume all historic `+234` records are malformed, or bulk edit their owners. Do not automatically add the index on application startup. Rerun the audit and verify exact JWT/customer ownership afterwards.
+
 ## Environment-specific blockers
 - No validated production service mapping.
 - Key rotation coordinated across JWT verifiers is still outstanding.
