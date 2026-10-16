@@ -48,6 +48,9 @@ _Last updated: 2026-10-14._
 | D-034 | Persist a lease-scoped `upmindProvisionAttemptedAt` marker *before* external creation and do not automatically retry an uncertain remote write. | Provider timeouts or process crashes can leave a created-but-unlinked Upmind client. Retry may search and reconcile exact identity, but must not send a second potentially duplicate POST without manual/provider evidence. |
 | D-035 | Guard Upmind retry-state writes with the active lease rather than saving a stale Mongoose user document. | Never overwrite linkage assigned by another worker during a race or after expiry. |
 
+| D-036 | Share an atomic MongoDB `lastOtpRequestedAt` compare-and-set reservation between legacy login and resend across phone/email channels. | Separate read/check/user.save operations let concurrent calls send multiple OTPs; a single DB operation limits one request per 30 seconds per account. |
+| D-037 | Persist the email OTP hash, expiry and attempt reset before handing the code to SendGrid; persist registration before mailing its first code. | A delivery must not precede a durable verifiable code or account. Provider errors keep the 30-second cooldown; a saved but undelivered registration must recover through resend, not duplicate registration. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
