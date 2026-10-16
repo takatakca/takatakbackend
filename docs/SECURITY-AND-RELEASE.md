@@ -18,6 +18,10 @@ The public repository contains `keys/private.pem` in tracked history. Assume the
 
 GitHub Actions runs `node scripts/check-tracked-secrets.js` before installing dependencies. The script scans Git-tracked files for accidental credential artifacts and rejects changed/new private keys, confidential environment files and recognizable access tokens without logging their actual contents. The previously committed `keys/private.pem` remains in the repository history and is **still compromised**; it is temporarily recognized by one pinned Git blob SHA solely to avoid disguising it as a new secret or silently replacing it. This warning is not an exemption for rotation, and the old key must be retired through issue #2. Enable or review GitHub repository secret scanning as a complementary control, where available.
 
+## Legacy OTP atomic issuance and provider failure handling
+
+Both SMS and email legacy OTP endpoints reserve a shared 30-second cooldown with an atomic MongoDB predicate, preventing simultaneous login and resend from bypassing throttling. Email codes are generated via CSPRNG, hashed with bcrypt and persisted with expiry and zero attempts before SendGrid is invoked. Registration persists the account and code first. A provider error does not roll back the cooldown, so repeated immediate attempts are rejected; retry after 30 seconds. Registration returns HTTP 503 if delivery fails after the account has been saved; clients must use resend rather than register again. Legacy flow should eventually be retired through the owner-approved central TAKATAK Auth migration (PR #1).
+
 ## MongoDB TTL migration
 
 The original Session model created a TTL index on `createdAt` expiring after 7 days, even though refresh session TTL defaults to 30 days. The new model sets the TTL on `expiresAt` (the actual session expiry). Mongoose will not automatically delete the old MongoDB index.
