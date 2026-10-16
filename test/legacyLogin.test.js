@@ -5,11 +5,16 @@ const Users = require("../models/User");
 const { login } = require("../controller/Auth");
 
 test("legacy login throttles repeated SMS/email OTP requests using saved timestamp", async t => {
-  t.mock.method(Users, "findOne", async () => ({
+  const user = {
     _id: "507f1f77bcf86cd799439011",
     phone: "+15145550184",
     email: "someone@example.com",
     lastOtpRequestedAt: new Date(),
+  };
+  t.mock.method(Users, "findOne", async () => user);
+  t.mock.method(Users, "find", filter => ({
+    limit(n) { assert.equal(n, 2); assert.equal(filter.phone, user.phone); return this; },
+    select() { return Promise.resolve([user]); },
   }));
   let calls = 0;
   t.mock.method(Users, "updateOne", async (filter, update) => {
