@@ -20,7 +20,7 @@ _Last review: 2026-10-14. Newest authoritative progress is in WORKLOG.md._
 | TK-BE-016 | P1 | completed in code | Sign refresh JWT before token rotation, reject replay and racing updates | New test scenarios green and runtime live path later verified |
 | TK-BE-017 | P1 | coded; CI/live Upmind validation pending | Preserve hidden Upmind linkage in legacy phone OTP; delete transient reversible credential once client linked | Tests pass for final main SHA, no duplicate Upmind client on live sign-in, old encrypted secrets cleared on linked accounts |
 | TK-BE-018 | P1 | coded; CI previously green | Prevent newly tracked secrets or replacement private keys on main | Tracked file gate and tests pass for exact latest SHA, legacy leaked blob only acknowledged by pinned hash, coordinated key rotation #2 remains open |
-| TK-BE-019 | P1 | code + mocked tests done; live tenant verification pending | Prevent simultaneous local-worker duplicate Upmind provisioning with a MongoDB CAS lease | Exclusive two-minute per-user lease, guarded owner-only association update and expiry tested; provider-side uniqueness/idempotency verified in authorized environment |
+| TK-BE-019 | P1 | lease-before-search and create-attempt barrier coded; CI and real tenant verification pending | Prevent stale-search, concurrent and uncertain retry Upmind duplicate provisioning | Exclusive lease before lookup; durable pre-POST attempt marker; later empty searches cannot POST again; exact reconciling match clears marker; provider uniqueness/idempotency validated in authorized environment |
 | TK-BE-012 | P1 | completed | Establish five-document handoff process | `PROJECT_STATUS`, `TASK_QUEUE`, `AGENT_HANDOFF`, `DEPLOYMENT`, `DECISIONS` committed in docs |
 
 ## Work rules
