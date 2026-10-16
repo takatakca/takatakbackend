@@ -1,7 +1,7 @@
 
 const Users = require('../models/User');
 const { normalizePhone } = require("../utils/phoneUtils");
-const { findLegacyPhoneOtpUser } = require("../utils/legacyOtpAccount");
+const { findLegacyPhoneOtpUser, findUniqueLegacyPhoneUser } = require("../utils/legacyOtpAccount");
 const {sendOtpToPhone, checkOtpFromPhone} = require("../utils/sendOtpToPhone");
 const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
@@ -114,7 +114,7 @@ const login = async (req, res) => {
   try {
     if (phone !== undefined && phone !== null && phone !== "") {
       if (typeof phone !== "string") return res.status(400).json({ error: "Invalid phone number" });
-      const user = await Users.findOne({ phone: normalizePhone(phone) });
+      const user = await findUniqueLegacyPhoneUser(phone);
       if (!user) return res.status(401).json({ error: "Phone number not found" });
       if (!await issueLegacyOtp(user, "phone")) {
         return res.status(429).json({ error: "Please wait before requesting another verification code." });
@@ -134,6 +134,9 @@ const login = async (req, res) => {
   } catch (error) {
     if (error?.code === "INVALID_PHONE_NUMBER") {
       return res.status(400).json({ error: "Invalid phone number. Use international format (+country code)." });
+    }
+    if (error?.code === "AMBIGUOUS_LEGACY_PHONE") {
+      return res.status(409).json({ error: "Phone identity requires account review" });
     }
     console.error("Login OTP issue failed:", error.message);
     return res.status(503).json({ error: "Verification delivery unavailable. Try again later." });
@@ -264,7 +267,10 @@ const verifyOtp = async (req, res) => {
         if (error?.code === 'INVALID_PHONE_NUMBER') {
             return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
         }
-        console.error("verifyOtp error:", error.message);
+        if (error?.code === "AMBIGUOUS_LEGACY_PHONE") {
+      return res.status(409).json({ error: "Phone identity requires account review" });
+    }
+    console.error("verifyOtp error:", error.message);
         return res.status(500).json({ message: 'Something went wrong' });
     }
 
@@ -278,7 +284,7 @@ const requestNewCode = async (req, res) => {
   try {
     if (phone !== undefined && phone !== null && phone !== "") {
       if (typeof phone !== "string") return res.status(400).json({ error: "Invalid phone number" });
-      const user = await Users.findOne({ phone: normalizePhone(phone) });
+      const user = await findUniqueLegacyPhoneUser(phone);
       if (!user) return res.status(401).json({ message: "Invalid phone number" });
       if (!await issueLegacyOtp(user, "phone")) {
         return res.status(429).json({ message: "Please wait before requesting another code." });
@@ -298,6 +304,9 @@ const requestNewCode = async (req, res) => {
   } catch (error) {
     if (error?.code === "INVALID_PHONE_NUMBER") {
       return res.status(400).json({ error: "Invalid phone number. Use international format (+country code)." });
+    }
+    if (error?.code === "AMBIGUOUS_LEGACY_PHONE") {
+      return res.status(409).json({ error: "Phone identity requires account review" });
     }
     console.error("Resend OTP issue failed:", error.message);
     return res.status(503).json({ error: "Verification delivery unavailable. Try again later." });
