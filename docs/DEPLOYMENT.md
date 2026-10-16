@@ -16,6 +16,12 @@ Once the correct hosting account/workspace is confirmed:
 9. Smoke test authentication migration, failed JWT rejection, refresh/logout, own-account dashboard; never expose test credentials or customer data.
 10. Record deployed commit, timestamp, URL, checks, exceptions and rollback target here and in `AGENT_HANDOFF.md`.
 
+## Legacy OTP delivery and concurrency smoke checks
+
+The legacy `/auth/login` and `/auth/resend-code` endpoints share one 30-second MongoDB compare-and-set cooldown, regardless of SMS versus email. The email code hash, attempt counter and five-minute expiry must be committed in the same update before SendGrid is called. Registration commits the user and email OTP before sending. A SendGrid/Twilio error after reservation leaves the cooldown in place: the user may retry after 30 seconds. An account created before a SendGrid failure receives HTTP 503 and can use `/auth/resend-code` later; do not create a second registration record. DB uniqueness races yield HTTP 409.
+
+On an authorized test database/provider, send simultaneous login/resend requests for the *same test user* and verify only one provider send; verify that the delivered email code matches a durable DB hash before the outbound call, succeeds at verification, and expires in five minutes. Simulate provider failure and verify a safe retry after 30 seconds, including a registration saved without successful mail delivery. Provider integration and canonical TAKATAK Auth migration must be validated before production acceptance. Avoid using real customers for this test.
+
 ## Verify the exact deployed commit
 
 The backend exposes `GET /health/version` with JSON `{ "revision": "<40-hex-SHA>" }` when a runtime-provided SHA is available. Valid environment sources are `RELEASE_SHA` (preferred explicit deploy value), `RENDER_GIT_COMMIT`, and `GIT_COMMIT_SHA`. If none contains a valid commit, the endpoint returns `{ "revision": null }`: **unknown is not a successful deployment**. When configuring release automation for a confirmed host, inject the exact GitHub commit into `RELEASE_SHA`; compare endpoint output with provider release record, the intended branch, and the GitHub Actions run. Keep this endpoint uncredentialed but strictly metadata-only, with `Cache-Control: no-store`.
