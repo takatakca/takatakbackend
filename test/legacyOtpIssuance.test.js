@@ -88,7 +88,7 @@ test("simultaneous email login and resend only send one committed code", async t
   assert.deepEqual([first.statusCode, second.statusCode].sort(), [200, 429]);
   assert.equal(issued.length, 1);
   assert.equal(committed, saved);
-  assert.ok(await bcrypt.compare(/code is: (\\d{6})/.exec(issued[0])[1], saved.userotp));
+  assert.ok(await bcrypt.compare(/code is: (\d{6})/.exec(issued[0])[1], saved.userotp));
 });
 
 test("failed SendGrid delivery retains atomic cooldown and does not return success", async t => {
@@ -108,7 +108,7 @@ test("registration commits the new account and its OTP before sending email", as
   mockMail(t, async msg => {
     sendCount++;
     assert.ok(committed);
-    const otp = /code is: (\\d{6})/.exec(msg.text)[1];
+    const otp = /code is: (\d{6})/.exec(msg.text)[1];
     assert.ok(await bcrypt.compare(otp, committed.userotp));
     assert.equal(committed.email, "new@example.test");
   });
