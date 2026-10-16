@@ -7,7 +7,8 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "check:release": "node scripts/check-release-readiness.js",
-    "audit:sessions": "node scripts/audit-session-ttl.js"
+    "audit:sessions": "node scripts/audit-session-ttl.js",
+    "audit:phones": "node scripts/audit-legacy-phone-identities.js"
   },
   "keywords": [],
   "author": "",
