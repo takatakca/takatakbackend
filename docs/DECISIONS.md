@@ -44,6 +44,10 @@ _Last updated: 2026-10-14._
 
 | D-032 | Use a two-minute per-user MongoDB compare-and-set lease before legacy Upmind client creation; persist the returned ID only for the still-active lease owner. | Prevent simultaneous backend workers creating duplicate remote customers and overwriting linkage; interrupted locks expire, but provider uniqueness/idempotency and cross-system races still need verification. |
 
+| D-033 | Obtain the MongoDB provisioning lease before the entire Upmind client search rather than only before the create POST. | A second worker must not use an older empty search after the winning worker linked or created a client. |
+| D-034 | Persist a lease-scoped `upmindProvisionAttemptedAt` marker *before* external creation and do not automatically retry an uncertain remote write. | Provider timeouts or process crashes can leave a created-but-unlinked Upmind client. Retry may search and reconcile exact identity, but must not send a second potentially duplicate POST without manual/provider evidence. |
+| D-035 | Guard Upmind retry-state writes with the active lease rather than saving a stale Mongoose user document. | Never overwrite linkage assigned by another worker during a race or after expiry. |
+
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
 - Which authenticated product consumes each legacy route, and when can login be retired?
