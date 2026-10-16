@@ -70,6 +70,10 @@ Source: https://github.com/upmind/sdk-php#pagination
 
 Before any remote client-create POST, the legacy backend atomically claims a two-minute per-user MongoDB lease. A second local worker denied the lease does not provision. Persisting the new client ID requires the current unexpired lease token and an account still unlinked; the lease releases after the attempt, or expires after failure. The lock token and temporary password must not appear in logs or client responses. This is **not** a global guarantee against externally provisioned duplicate Upmind customers; verify the real provider's email+brand uniqueness/idempotency, search consistency and authenticated customer contract before activation.
 
+## Upmind uncertain-create reconciliation
+
+Remote Upmind creation is inherently non-transactional with MongoDB. The local lease now covers the entire client search and prevents acting on stale empty results. Immediately before sending a create POST, a lease-guarded `upmindProvisionAttemptedAt` is set in MongoDB. If the process crashes, the POST times out, or persistence fails, the marker remains. Do not automatically send a second POST for that account even after the lease expires; only an exact unique email+brand client found on a fresh search can be linked automatically. Otherwise an authorized operator must investigate Upmind records, verify the correct customer and brand, and explicitly resolve or reset the marker after establishing the remote outcome. This gate does not protect against other systems using independent accounts or old writes predating deployment.
+
 ## Upmind client exchange privacy
 
 The authenticated `GET /user/upmindClientId` route issues a short-lived client association token only when the request's verified JWT session has a linked Upmind record. Its response is `private, no-store`; missing or weak `UPMIND_SECRET` is treated as unavailable instead of signing with an invalid key. The shared secret should be at least 32 high-entropy characters and never appear in Git or logs. Token semantics remain part of the legacy Upmind integration and require confirmation against the actual consumer.
