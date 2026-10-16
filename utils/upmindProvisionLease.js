@@ -31,6 +31,44 @@ async function acquireProvisionLease(Model, userId, now = new Date(), ttlMs = DE
   return lease?.upmindProvisionLock === token ? token : null;
 }
 
+// Mark the external POST as potentially executed before actually sending it.
+// When its outcome is uncertain (network timeout/process crash), subsequent
+// requests may search and re-link but must never issue another CREATE.
+async function beginProvisionAttempt(Model, userId, token, now = new Date()) {
+  if (!token) throw new TypeError("Missing Upmind lease token");
+  const result = await Model.updateOne(
+    {
+      _id: userId,
+      upmindClientId: null,
+      upmindProvisionLock: token,
+      upmindProvisionLockExpiresAt: { $gt: now },
+      upmindProvisionAttemptedAt: null,
+    },
+    {
+      $set: {
+        upmindProvisionAttemptedAt: now,
+        upmindRetryNeeded: true,
+      },
+    }
+  );
+  return result.matchedCount === 1;
+}
+
+// Record an inconclusive search/error only if the same worker still holds
+// its lease. Never save a stale full User document over another worker's link.
+async function flagProvisionReview(Model, userId, token, now = new Date()) {
+  if (!token) return;
+  await Model.updateOne(
+    {
+      _id: userId,
+      upmindClientId: null,
+      upmindProvisionLock: token,
+      upmindProvisionLockExpiresAt: { $gt: now },
+    },
+    { $set: { upmindRetryNeeded: true } }
+  );
+}
+
 // Only the holder may store a newly created remote customer ID. A late or
 // expired lease cannot overwrite a link stored by another instance.
 async function persistProvisionedClient(Model, userId, token, clientId, now = new Date()) {
@@ -44,7 +82,7 @@ async function persistProvisionedClient(Model, userId, token, clientId, now = ne
     },
     {
       $set: { upmindClientId: clientId, upmindRetryNeeded: false },
-      $unset: { encryptedPassword: 1 },
+      $unset: { encryptedPassword: 1, upmindProvisionAttemptedAt: 1 },
     }
   );
   return result.matchedCount === 1;
@@ -59,5 +97,6 @@ async function releaseProvisionLease(Model, userId, token) {
 }
 
 module.exports = {
-  DEFAULT_LEASE_MS, acquireProvisionLease, persistProvisionedClient, releaseProvisionLease,
+  DEFAULT_LEASE_MS, acquireProvisionLease, beginProvisionAttempt, flagProvisionReview,
+  persistProvisionedClient, releaseProvisionLease,
 };
