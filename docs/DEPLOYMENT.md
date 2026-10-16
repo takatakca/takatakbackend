@@ -28,6 +28,12 @@ Remote Upmind customer creation is now serialized per legacy MongoDB user throug
 
 After the actual Upmind sandbox/tenant and MongoDB environment are verified, test two simultaneous logins/provisioning attempts for the **same controlled test account** across separate backend workers; confirm at most one Upmind remote create POST and one associated account ID. Confirm retry behavior after a simulated worker crash/expired lock. Check that Upmind itself enforces uniqueness or idempotency for email/brand to prevent duplicates created sequentially by other systems. Never use real customer credentials or delete a production lock manually without reviewing the target record and operational effects.
 
+## Recovery from an uncertain Upmind provisioning attempt
+
+Upmind lookup now runs **inside** the per-user MongoDB lease. Before issuing a create POST, the service atomically persists `upmindProvisionAttemptedAt` so a process crash or HTTP timeout cannot authorize another create when the next search appears empty. The marker persists past lock expiry. Each subsequent attempt may search under a fresh lease and securely attach a unique exact email+brand+valid-ID match, which clears the marker; otherwise the account remains `upmindRetryNeeded` for manual review. Avoid clearing `upmindProvisionAttemptedAt` automatically after a timeout or merely because a search returned no records.
+
+With an authorized test tenant, simulate a provider timeout after accepting a create request; verify that subsequent login does **not** send another POST despite a temporarily empty search, and that the exact existing customer can be linked after it appears. Confirm that only the account's own MongoDB record is updated. Manual reconciliation requires checking the actual Upmind remote customer and duplicates before any operator clears the marker or retries provisioning.
+
 ## Upmind billing completeness and dashboard smoke checks
 
 The backend requests complete paginated orders, invoices and tickets via `limit`/`offset` from the currently authenticated user's validated `upmindClientId`. The response must provide array `data` and a stable integer `total`; ambiguous or incomplete data is treated as unavailable rather than as a confirmed zero. Pagination is bounded at 1,000 records per collection; larger collections require a reviewed provider contract and a follow-up scalability change, never partial figures presented as complete.
