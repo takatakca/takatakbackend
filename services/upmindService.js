@@ -3,7 +3,8 @@ const axios = require("axios");
 const { decrypt } = require("../utils/crypto");
 const Users = require("../models/User");
 const {
-  acquireProvisionLease, persistProvisionedClient, releaseProvisionLease,
+  acquireProvisionLease, beginProvisionAttempt, flagProvisionReview,
+  persistProvisionedClient, releaseProvisionLease,
 } = require("../utils/upmindProvisionLease");
 
 const UP_API = "https://api.upmind.io/api";
@@ -172,18 +173,26 @@ async function getTickets(clientId) {
 
 async function ensureUpmindClient(user) {
   if (user.upmindClientId) {
-    // If a legacy sign-in loaded the temporary Upmind password, clear it
-    // once the existing association has already been established.
     if (user.encryptedPassword) {
       user.encryptedPassword = undefined;
       await user.save();
     }
     return user;
   }
+
+  let lease = null;
   try {
     requireUpmindSettings();
-    // Search all returned pages; do not provision a duplicate client when
-    // the provider gave only page one, a malformed response, or unknown total.
+
+    // Claim before searching, not merely before POST. A worker which searched
+    // before another worker created a customer must never act on that stale
+    // empty result after it obtains a later lease.
+    lease = await acquireProvisionLease(Users, user._id);
+    if (!lease) {
+      user.upmindRetryNeeded = true;
+      return user; // Never overwrite the winning worker's linked account.
+    }
+
     const candidates = await collectCompleteClientSearch(async page =>
       (await client.get("/admin/clients", {
         params: {
@@ -196,53 +205,58 @@ async function ensureUpmindClient(user) {
     );
     const matched = findExactClientMatch(candidates, user.email, UPMIND_BRAND_ID);
     if (matched) {
-      user.upmindClientId = String(matched.id);
-      user.upmindRetryNeeded = false;
-      // The account can use its existing Upmind association; keeping a
-      // reversible login password is no longer necessary.
+      const clientId = validClientId(matched.id);
+      const linked = await persistProvisionedClient(Users, user._id, lease, clientId);
+      if (!linked) throw new Error("Upmind association lease lost; manual review needed");
+      user.upmindClientId = clientId;
       user.encryptedPassword = undefined;
-      await user.save();
-      return user;
-    }
-    if (candidates.length) {
-      // Search results might contain other people or brands; do not attach or
-      // provision duplicate customers while identity is ambiguous.
-      user.upmindRetryNeeded = true;
-      await user.save();
+      user.upmindRetryNeeded = false;
       return user;
     }
 
-    const password = user.encryptedPassword ? decrypt(user.encryptedPassword) : null;
-    if (!password) {
-      user.upmindRetryNeeded = true;
-      await user.save();
-      return user;
-    }
-    // Only one API worker may provision this legacy user at a time.
-    // A failed reservation does not touch the database state of the winner.
-    const lease = await acquireProvisionLease(Users, user._id);
-    if (!lease) {
+    if (candidates.length || !user.encryptedPassword) {
+      // Ambiguous/provider-owned results or no verified legacy credentials:
+      // do not attempt a remote create.
+      await flagProvisionReview(Users, user._id, lease);
       user.upmindRetryNeeded = true;
       return user;
     }
-    try {
-      const created = await createClient(user, password);
-      const newId = validClientId(created.id ?? created.data?.id);
-      const saved = await persistProvisionedClient(Users, user._id, lease, newId);
-      if (!saved) throw new Error("Upmind association lease lost; manual review needed");
-      user.upmindClientId = newId;
-      user.encryptedPassword = undefined;
-      user.upmindRetryNeeded = false;
-    } finally {
-      // If release fails, the bounded lease expires automatically; never
-      // expose its secret token or falsely report a duplicate account.
-      await releaseProvisionLease(Users, user._id, lease)
-        .catch(() => console.error("Upmind provisioning lease cleanup pending"));
+
+    // Decrypt before making the create attempt durable. Bad credentials
+    // cannot produce a partial remote provisioning request.
+    const password = decrypt(user.encryptedPassword);
+
+    // Atomic barrier prevents another POST if an earlier attempt timed out,
+    // crashed after sending, or lost its lease before recording its response.
+    // A subsequent worker may still find and link an existing exact match.
+    if (!await beginProvisionAttempt(Users, user._id, lease)) {
+      await flagProvisionReview(Users, user._id, lease);
+      user.upmindRetryNeeded = true;
+      return user;
     }
+
+    const created = await createClient(user, password);
+    const newId = validClientId(created.id ?? created.data?.id);
+    const saved = await persistProvisionedClient(Users, user._id, lease, newId);
+    if (!saved) throw new Error("Upmind association lease lost; manual review needed");
+    user.upmindClientId = newId;
+    user.encryptedPassword = undefined;
+    user.upmindRetryNeeded = false;
   } catch (err) {
     console.error("Upmind association pending review:", err.message);
     user.upmindRetryNeeded = true;
-    await user.save();
+    if (lease) {
+      try {
+        await flagProvisionReview(Users, user._id, lease);
+      } catch {
+        console.error("Upmind review-state persistence unavailable");
+      }
+    }
+  } finally {
+    if (lease) {
+      await releaseProvisionLease(Users, user._id, lease)
+        .catch(() => console.error("Upmind provisioning lease cleanup pending"));
+    }
   }
   return user;
 }
