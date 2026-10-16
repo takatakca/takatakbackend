@@ -6,6 +6,7 @@ const {sendOtpToPhone, checkOtpFromPhone} = require("../utils/sendOtpToPhone");
 const sendOtpToEmail = require("../utils/sendOtpToEmail");
 const generateOtp = require("../utils/generateOtp");
 const { reserveEmailOtpAttempt, consumeEmailOtp } = require("../utils/emailOtpAttempts");
+const { reserveLegacyOtpRequest, EMAIL_OTP_LIFETIME_MS } = require("../utils/legacyOtpIssuance");
 const { encrypt, decrypt } = require("../utils/crypto");
 const bcrypt = require("bcrypt");
 const { createSessionAndSetCookies } = require("./authSession")
@@ -23,153 +24,121 @@ const { log } = require('console');
 // ======================================
 
 const register = async (req, res) => {
-    const { firstName, lastName, email, username, phone, password } = req.body;
+  const { firstName, lastName, email, username, phone, password } = req.body || {};
+  try {
+    if (![firstName, lastName, email, username, password].every(
+      v => typeof v === "string" && v.trim().length > 0
+    ) || typeof phone !== "string" || !phone.trim()) {
+      return res.status(400).json({ message: "Please fill in all required fields." });
+    }
 
-        try {
-            if (!firstName || !lastName || !email || !phone || !username || !password) {
-                return res.status(400).json({ message: 'Please fill in all required fields.' });
-            }
+    const storedEmail = email.trim().toLowerCase();
+    const storedPhone = normalizePhone(phone);
+    const [existingUser, existingUsername] = await Promise.all([
+      Users.findOne({ $or: [{ email: storedEmail }, { phone: storedPhone }] }),
+      Users.findOne({ username }),
+    ]);
+    if (existingUser) return res.status(409).json({ error: "User already exists. Please log in." });
+    if (existingUsername) return res.status(409).json({ error: "Username is taken" });
 
-            // Normalize phone number with + accept by twilio to send code to whatsapp/number
-            const storedPhone = normalizePhone(phone); // Store E.164; never log sensitive phone numbers.
-            
+    // Legacy Upmind enrolment still requires an encrypted temporary credential.
+    // Its eventual removal is tracked in Auth retirement PR #1.
+    const encryptedPassword = encrypt(password);
+    const otp = generateOtp();
+    const now = new Date();
+    const RegUser = new Users({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: storedEmail,
+      username: username.trim(),
+      phone: storedPhone,
+      encryptedPassword,
+      userotp: await bcrypt.hash(otp, 10),
+      regTokenExpires: new Date(now.getTime() + EMAIL_OTP_LIFETIME_MS),
+      otpAttempts: 0,
+      lastOtpRequestedAt: now,
+    });
 
-            // Check if username or email/phone already exists
-            const [existingUser, existingUsername] = await Promise.all([
-                Users.findOne({ $or: [{ email }, { phone: storedPhone }] }),
-                Users.findOne({ username })
-            ]);
-            // Show conflict error if user exists
-            if (existingUser) {
-                return res.status(409).json({ error: 'User already exists. Please log in.' });
-            }
-
-            if (existingUsername) {
-                return res.status(409).json({ error: 'Username is taken' });
-            }
-            /*
-            from here
-            // Send PHONE OTP via Verify (no local OTP storage)
-
-            //   // i comment this because trial balance is exhausted.
-            // try {
-
-            // // await sendOtpToPhone(storedPhone);
-            
-            // } catch (err) {
-            // console.error('Twilio Verify Error:', err.message || err);
-            // return res.status(500).json({ error: 'Failed to send OTP. Check phone number or try again later.' });
-            // }
-            to here
-            */
-
-            //  Encrypt password before saving
-            const encryptedPassword = encrypt(password);
-            
-            // Create user record (no userotp/regTokenExpires for phone)
-            const RegUser = new Users({
-            firstName,
-            lastName,
-            email,
-            username,
-            phone: storedPhone,
-            encryptedPassword, //  temporary storage
-            });
-
-            // so im using this temporarilly for testing purpose
-            try {
-      // (Commented out: Twilio for now)
-      // await sendOtpToPhone(storedPhone);
-
-      // Use email OTP for testing
-      const otp = generateOtp();
-      await sendOtpToEmail(email, otp);
-
-      // Save OTP hash + expiry
-      RegUser.userotp = await bcrypt.hash(otp, 10);
-      RegUser.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
-      RegUser.otpAttempts = 0;
-    } catch (err) {
-      console.error("OTP Error:", err.message || err);
-      return res.status(500).json({
-        error: "Failed to send OTP. Please try again later.",
+    // Never email a code for an account that has not committed in MongoDB.
+    // Duplicate-key races are handled after the insert, not just via findOne.
+    await RegUser.save();
+    try {
+      await sendOtpToEmail(storedEmail, otp);
+    } catch {
+      // Persisted account can request a fresh OTP after its 30-second cooldown.
+      return res.status(503).json({
+        error: "Account registered but verification email delivery failed. Request a new code shortly.",
+        userId: RegUser._id,
       });
     }
-
-
-            await RegUser.save();
-
-            return res.status(201).json({
-            message: "New user registered. OTP sent.",
-            userId: RegUser._id,
-            });
-
-        } catch (error) {
-            if (error?.code === 'INVALID_PHONE_NUMBER') {
-                return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
-            }
-            console.error('Registration Error:', error.response?.status || error.message);
-            return res.status(500).json({ error: 'Something went wrong. Please try again later.' });
-        }
+    return res.status(201).json({
+      message: "New user registered. OTP sent.",
+      userId: RegUser._id,
+    });
+  } catch (error) {
+    if (error?.code === "INVALID_PHONE_NUMBER") {
+      return res.status(400).json({ error: "Invalid phone number. Use international format (+country code)." });
+    }
+    if (error?.code === 11000) {
+      return res.status(409).json({ error: "User already exists or username is taken" });
+    }
+    if (error?.name === "ValidationError") {
+      return res.status(400).json({ error: "Invalid registration information" });
+    }
+    console.error("Registration Error:", error.response?.status || error.message);
+    return res.status(500).json({ error: "Something went wrong. Please try again later." });
+  }
 };
 
+// Reserve the cooldown in MongoDB before invoking Twilio or SendGrid.
+// For email, the hash and expiry commit atomically in the same write; delivery
+// failure keeps the cooldown in place, allowing safe retry after 30 seconds.
+async function issueLegacyOtp(user, channel) {
+  if (channel === "phone") {
+    if (!await reserveLegacyOtpRequest(Users, user._id)) return false;
+    await sendOtpToPhone(user.phone);
+    return true;
+  }
+  const otp = generateOtp();
+  const hash = await bcrypt.hash(otp, 10);
+  if (!await reserveLegacyOtpRequest(Users, user._id, { emailHash: hash })) return false;
+  await sendOtpToEmail(user.email, otp);
+  return true;
+}
 
 // ======================================
-// LOGIN — phone via Twilio Verify / email via DIY
+// LOGIN — legacy phone via Twilio Verify / email via SendGrid
 // ======================================
 const login = async (req, res) => {
-    const { phone, email } = req.body;
-
-    try {
-
-      if (phone) {
-        const user = await Users.findOne({ phone: normalizePhone(phone) });
-        if (!user) return res.status(401).json({ error: "Phone number not found" });
-        if (user.lastOtpRequestedAt && Date.now() - new Date(user.lastOtpRequestedAt).getTime() < 30_000) {
-          return res.status(429).json({ error: "Please wait before requesting another verification code." });
-        }
-  
-        // console.log("EMAIL:", email);
-        // console.log("USER FOUND:", user);
-
-        await sendOtpToPhone(user.phone);
-        user.lastOtpRequestedAt = Date.now();
-        await user.save();
-  
-        return res.status(200).json({ message: "OTP sent to your phone" });
+  const { phone, email } = req.body || {};
+  try {
+    if (phone !== undefined && phone !== null && phone !== "") {
+      if (typeof phone !== "string") return res.status(400).json({ error: "Invalid phone number" });
+      const user = await Users.findOne({ phone: normalizePhone(phone) });
+      if (!user) return res.status(401).json({ error: "Phone number not found" });
+      if (!await issueLegacyOtp(user, "phone")) {
+        return res.status(429).json({ error: "Please wait before requesting another verification code." });
       }
-  
-      if (email) {
-        const user = await Users.findOne({ email });
-        if (!user) return res.status(401).json({ error: "Email address not found" });
-        if (user.lastOtpRequestedAt && Date.now() - new Date(user.lastOtpRequestedAt).getTime() < 30_000) {
-          return res.status(429).json({ error: "Please wait before requesting another verification code." });
-        }
-  
-        // console.log("EMAIL:", email);
-        // console.log("USER FOUND:", user);
-
-        const otp = generateOtp();
-        await sendOtpToEmail(user.email, otp);
-  
-        user.userotp = await bcrypt.hash(otp, 10);
-        user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
-        user.otpAttempts = 0;
-        user.lastOtpRequestedAt = new Date();
-        await user.save();
-  
-        return res.status(200).json({ message: "OTP sent to your email" });
-      }
-  
-      return res.status(400).json({ message: "Email or phone number is required" });
-    } catch (error) {
-      if (error?.code === 'INVALID_PHONE_NUMBER') {
-        return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
-      }
-      console.error("Login Error:", error.message);
-      res.status(500).json({ error: "Internal server error" });
+      return res.status(200).json({ message: "OTP sent to your phone" });
     }
-  };
+    if (email !== undefined && email !== null && email !== "") {
+      if (typeof email !== "string") return res.status(400).json({ error: "Invalid email address" });
+      const user = await Users.findOne({ email: email.trim().toLowerCase() });
+      if (!user) return res.status(401).json({ error: "Email address not found" });
+      if (!await issueLegacyOtp(user, "email")) {
+        return res.status(429).json({ error: "Please wait before requesting another verification code." });
+      }
+      return res.status(200).json({ message: "OTP sent to your email" });
+    }
+    return res.status(400).json({ message: "Email or phone number is required" });
+  } catch (error) {
+    if (error?.code === "INVALID_PHONE_NUMBER") {
+      return res.status(400).json({ error: "Invalid phone number. Use international format (+country code)." });
+    }
+    console.error("Login OTP issue failed:", error.message);
+    return res.status(503).json({ error: "Verification delivery unavailable. Try again later." });
+  }
+};
 
 // VERIFY OTP — phone: Verify check; email: DIY compare
 // ======================================
@@ -305,57 +274,35 @@ const verifyOtp = async (req, res) => {
 // RESEND OTP — phone via Verify / email via DIY
 // ======================================
 const requestNewCode = async (req, res) => {
-    const { phone, email } = req.body;
-    try {
-      const cooldownMs = 30 * 1000;
-  
-      if (phone) {
-        const user = await Users.findOne({ phone: normalizePhone(phone) });
-        if (!user) return res.status(401).json({ message: "Invalid phone number" });
-  
-        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt < cooldownMs) {
-          return res.status(429).json({ message: "Please wait before requesting another code." });
-        }
-  
-        await sendOtpToPhone(user.phone);
-        user.lastOtpRequestedAt = Date.now();
-        await user.save();
-  
-        return res.status(200).json({ message: "OTP has been resent to your phone" });
+  const { phone, email } = req.body || {};
+  try {
+    if (phone !== undefined && phone !== null && phone !== "") {
+      if (typeof phone !== "string") return res.status(400).json({ error: "Invalid phone number" });
+      const user = await Users.findOne({ phone: normalizePhone(phone) });
+      if (!user) return res.status(401).json({ message: "Invalid phone number" });
+      if (!await issueLegacyOtp(user, "phone")) {
+        return res.status(429).json({ message: "Please wait before requesting another code." });
       }
-  
-      if (email) {
-        const user = await Users.findOne({ email: email.toLowerCase() });
-        if (!user) return res.status(401).json({ message: "Invalid email address" });
-  
-        if (user.lastOtpRequestedAt && Date.now() - user.lastOtpRequestedAt.getTime() < cooldownMs) {
-          return res.status(429).json({ message: "Please wait before requesting another code." });
-        }
-  
-        const otp = generateOtp();
-        await sendOtpToEmail(user.email, otp);
-  
-        user.userotp = await bcrypt.hash(otp, 10);
-        user.regTokenExpires = new Date(Date.now() + 5 * 60 * 1000);
-        user.otpAttempts = 0;
-        user.lastOtpRequestedAt = new Date();
-        
-
-        await user.save();
-  
-        return res.status(200).json({ message: "OTP has been resent to your email" });
-      }
-  
-      return res.status(400).json({ message: "Email or phone number is required" });
-    } catch (error) {
-      if (error?.code === 'INVALID_PHONE_NUMBER') {
-        return res.status(400).json({ error: 'Invalid phone number. Use international format (+country code).' });
-      }
-      console.error("Error resending code:", error.message);
-      return res.status(500).json({ message: "Something went wrong. Try again later." });
+      return res.status(200).json({ message: "OTP has been resent to your phone" });
     }
-  };
-
+    if (email !== undefined && email !== null && email !== "") {
+      if (typeof email !== "string") return res.status(400).json({ error: "Invalid email address" });
+      const user = await Users.findOne({ email: email.trim().toLowerCase() });
+      if (!user) return res.status(401).json({ message: "Invalid email address" });
+      if (!await issueLegacyOtp(user, "email")) {
+        return res.status(429).json({ message: "Please wait before requesting another code." });
+      }
+      return res.status(200).json({ message: "OTP has been resent to your email" });
+    }
+    return res.status(400).json({ message: "Email or phone number is required" });
+  } catch (error) {
+    if (error?.code === "INVALID_PHONE_NUMBER") {
+      return res.status(400).json({ error: "Invalid phone number. Use international format (+country code)." });
+    }
+    console.error("Resend OTP issue failed:", error.message);
+    return res.status(503).json({ error: "Verification delivery unavailable. Try again later." });
+  }
+};
 
 const createUpmindSession = async (req, res) => {
   // This is a user-specific credential, not a cacheable customer identifier.
