@@ -3,6 +3,8 @@
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
+- 2026-10-16 | ChatGPT | main | active | Fail closed for duplicate legacy phone identities on SMS login/resend/verification; add read-only phone-collision audit before any unique-index migration | code regressions, matching CI, five-doc handoff; keep Auth PR #1 and compromised-key issue #2 untouched
+
 - 2026-10-16 | ChatGPT | main | done (live provider verification pending) | Shared MongoDB-atomic 30-second phone/email OTP cooldown; committed bcrypt email code before SendGrid; saved registration before delivery; 409 duplicates and 503 delivery recovery; new concurrency/provider tests; CI 38883037421 passed | verify final exact-SHA CI, actual SendGrid/Twilio and MongoDB test integration, production host and key rotation #2/central Auth PR #1
 
 - 2026-10-16 | ChatGPT | main | done (production/provider verification gated) | Moved Upmind lease before search; marked remote creates durably before POST; prevented stale full-document retry saves; added crash/timeout/late-worker/reconciliation tests; CI 38852790065 passed | confirm exact final handoff SHA CI; verify real Upmind sandbox idempotency and hosting; coordinate RSA issue #2, Auth PR #1 and MongoDB TTL audit
