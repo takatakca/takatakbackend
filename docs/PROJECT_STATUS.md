@@ -62,6 +62,12 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - `test/upmindProvisionLease.test.js` verifies atomic filters, expiry, ownership and guarded persistence. `test/upmindServiceFlow.test.js` verifies a losing worker cannot trigger a second remote POST. CI also syntax-checks `utils/upmindProvisionLease.js`.
 - **Limit:** this prevents simultaneous creations for the same MongoDB user within this backend, not independent external systems creating the same Upmind email/brand, nor eventual-consistency races between sequential attempts. Confirm provider-level uniqueness/idempotency using an authorized test tenant before production enrollment.
 
+## Upmind stale-search and uncertain-create safety (2026-10-16)
+- Corrected a cross-worker race: the MongoDB lease is now claimed **before** searching for existing Upmind clients. A second worker cannot act on a stale previously empty search after another worker has linked or provisioned the account.
+- Added a persistent `upmindProvisionAttemptedAt` marker, set through a lease-scoped atomic compare-and-set **before** any remote client-creation POST. If the provider times out or the worker crashes, later requests may locate/link an exact client but **must not POST another creation** on an empty search; they remain pending manual reconciliation. Successful exact linking clears the marker.
+- Retry-state updates use lease-guarded MongoDB updates instead of saving potentially stale user documents. Mocked tests cover concurrent/late workers, uncertain POST followed by retry, successful reconciliation, and owner-only persisted state. These are not live provider tests.
+- **Remaining caveat:** existing legacy records previously created without this marker and independent systems creating Upmind customers still need provider-side uniqueness/idempotency checks. A manual support workflow must reconcile uncertain attempts before resetting this marker.
+
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
 - **Migration**: legacy auth endpoints continue to serve register/login/OTP until owner-approved PR #1: https://github.com/takatakca/takatakbackend/pull/1. Do not merge solely to achieve a "100%" mark.
