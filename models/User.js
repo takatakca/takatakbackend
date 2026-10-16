@@ -69,6 +69,8 @@ upmindRetryNeeded: { type: Boolean, default: false, select: false },
 // Lease prevents concurrent local workers from provisioning the same Upmind client.
 upmindProvisionLock: { type: String, select: false, default: null },
 upmindProvisionLockExpiresAt: { type: Date, select: false, default: null },
+// Set before a remote create POST. An unknown response must not lead to another POST.
+upmindProvisionAttemptedAt: { type: Date, select: false, default: null },
 
 
 phoneVerified: { type: Boolean, default: false },
