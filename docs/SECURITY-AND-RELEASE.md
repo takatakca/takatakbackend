@@ -82,6 +82,10 @@ Remote Upmind creation is inherently non-transactional with MongoDB. The local l
 
 The authenticated `GET /user/upmindClientId` route issues a short-lived client association token only when the request's verified JWT session has a linked Upmind record. Its response is `private, no-store`; missing or weak `UPMIND_SECRET` is treated as unavailable instead of signing with an invalid key. The shared secret should be at least 32 high-entropy characters and never appear in Git or logs. Token semantics remain part of the legacy Upmind integration and require confirmation against the actual consumer.
 
+## Duplicate legacy phone identity protection
+
+`Users.phone` is not guaranteed unique in the current schema. Phone SMS login/resend/verification now use a bounded two-record lookup after E.164 normalization, and fail closed with HTTP 409 when the number matches multiple users; they never select the first arbitrary account for Twilio verification. `npm run audit:phones` performs only a read-only MongoDB aggregate collision count plus index inspection, emitting no numbers or customer records. During release preparation, run this only against the explicitly confirmed and authorized legacy database. A full unique `phone` index must **not** be enabled until real duplicate ownership has been investigated, backups verified and the legacy/canonical Auth migration coordinated. Without the index, simultaneous registrations may still create duplicates, so this is a mitigation rather than proof of global uniqueness.
+
 ## Known legacy debt
 
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
