@@ -33,6 +33,7 @@ jobs:
           node --check controller/refreshController.js
           node --check controller/logoutController.js
           node --check controller/authSession.js
+          node --check controller/Auth.js
           node --check controller/userDashboard.js
           node --check middleware/authMiddleware.js
           node --check services/upmindService.js
@@ -44,6 +45,7 @@ jobs:
           node --check scripts/check-release-readiness.js
           node --check scripts/audit-session-ttl.js
           node --check utils/emailOtpAttempts.js
+          node --check utils/legacyOtpIssuance.js
           node --check utils/legacyOtpAccount.js
           node --check utils/crypto.js
           node --check utils/releaseRevision.js
