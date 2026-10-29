@@ -92,6 +92,12 @@ Before allowing legacy phone OTP in the verified backend environment, run `npm r
 
 The current schema lacks `phone` uniqueness. New SMS login, resend and verification fail closed with HTTP 409 when the phone maps to two or more existing users, but this alone does not prevent races during new registrations. If collisions are reported: confirm genuine owners individually, create an authorized backup, agree on the canonical TAKATAK Auth migration and any legacy phone re-association, then separately plan an approved unique index migration after duplicates are resolved. Do not assume all historic `+234` records are malformed, or bulk edit their owners. Do not automatically add the index on application startup. Rerun the audit and verify exact JWT/customer ownership afterwards.
 
+## Phone-audit canonical equivalence preflight (added 2026-10-29)
+
+The enhanced `npm run audit:phones` canonicalizes supported stored strings **inside MongoDB** using `$replaceAll` and `$regexMatch` (requires MongoDB 4.4+ for `$replaceAll`). It aggregates normalized E.164 equivalents so raw `5145550184` and `+15145550184` count as a collision. Missing/invalid/unsupported historic strings are reported only as `invalidPhoneAccounts`; a positive count blocks `healthy` even if a unique raw phone index exists. The query does not return phone-number values to the application.
+
+When the real MongoDB service and a read-only audited account are confirmed, first verify the MongoDB server version and connection, then run `npm run audit:phones`. Exit 0 requires **zero canonical collisions, zero invalid phone accounts and a full acceptable unique raw phone index**; exit 2 requires reconciliation; exit 1 means the audit failed. Confirm the schema's actual phone serialization and supported historical formats under a controlled test dataset because MongoDB expression behavior has not been integration-tested. Never create an index or rewrite +234 numbers automatically, and avoid putting private account data in CI artifacts.
+
 ## Environment-specific blockers
 - No validated production service mapping.
 - Key rotation coordinated across JWT verifiers is still outstanding.
