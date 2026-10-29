@@ -52,6 +52,8 @@ Legacy MongoDB accounts may share a phone number. SMS login, resend and verifica
 
 When the correct authorized MongoDB database is known, run `npm run audit:phones` with read-only permissions. It reports only counts of duplicate phone identities and whether a full unique phone index exists; it does not print actual numbers. Exit 0 means the audit sees zero collisions and a unique index, 2 means a review is needed, and 1 means the audit could not finish. Do not create a unique index before reviewing actual legacy collisions, backup/ownership requirements and the canonical TAKATAK Auth cutover.
 
+**Audit precision (October 2026):** `npm run audit:phones` now groups equivalent saved E.164 and Canadian/US national representations inside MongoDB 4.4+, and separately reports `invalidPhoneAccounts`. Read-only output contains counts only; no phone values. An index is not safe to add until the actual database and ownership have been reviewed. See `docs/DEPLOYMENT.md`.
+
 ## Deployment status and release requirements
 
 GitHub Actions workflow `Backend CI` checks this repository; **it does not deploy production**. Verify the selected hosting service, deployment branch, environment, key mounting, MongoDB connectivity and the external TAKATAK Auth cutover before enabling production auto-deploy.
