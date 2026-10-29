@@ -1,5 +1,5 @@
 # Task queue — TAKATAK backend
-_Last review: 2026-10-14. Newest authoritative progress is in WORKLOG.md._
+_Last review: 2026-10-29. Newest authoritative progress is in WORKLOG.md._
 
 | ID | Priority | Status | Work | Definition of done |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ _Last review: 2026-10-14. Newest authoritative progress is in WORKLOG.md._
 | TK-BE-019 | P1 | lease-before-search and create-attempt barrier coded; CI and real tenant verification pending | Prevent stale-search, concurrent and uncertain retry Upmind duplicate provisioning | Exclusive lease before lookup; durable pre-POST attempt marker; later empty searches cannot POST again; exact reconciling match clears marker; provider uniqueness/idempotency validated in authorized environment |
 | TK-BE-020 | P1 | code and regression tests implemented; live provider/DB checks pending | Make legacy SMS/email OTP cooldown atomic and send email only after hash persistence | Concurrent requests share MongoDB CAS cooldown; email code saved before sending; registration saved before SendGrid; errors and recovery tested; actual tenant and canonical Auth cutover pending |
 | TK-BE-021 | P1 | code and CI green; live MongoDB collision audit blocked | Prevent SMS OTP from authenticating arbitrarily across duplicate legacy phone accounts | Phone login/resend/verification reject ambiguous numbers; audit:phones read-only counts collisions and checks unique index; after backup and ownership review migrate existing duplicates and enforce approved unique index without downtime |
+| TK-BE-022 | P1 | code and mocked tests completed; live MongoDB audit blocked | Canonicalize phone uniqueness audit and report invalid historic phones without PII | MongoDB-only normalization with read-only counts, documented MongoDB 4.4+ requirement, exact-SHA CI success; authorized live audit, ownership review and backup still required before unique-index migration |
 | TK-BE-012 | P1 | completed | Establish five-document handoff process | `PROJECT_STATUS`, `TASK_QUEUE`, `AGENT_HANDOFF`, `DEPLOYMENT`, `DECISIONS` committed in docs |
 
 ## Work rules
