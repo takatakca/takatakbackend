@@ -1,5 +1,5 @@
 # Project status — TAKATAK legacy backend
-_Last verified: 2026-10-14 (GitHub repository state; not a production release)_
+_Last verified: 2026-10-29 (GitHub code and CI only; not a production release)_
 
 ## Repository and authority
 - Repository: https://github.com/takatakca/takatakbackend
@@ -79,6 +79,11 @@ _Last verified: 2026-10-14 (GitHub repository state; not a production release)_
 - Added `npm run audit:phones` (`scripts/audit-legacy-phone-identities.js`), read-only counts of total accounts, distinct phone values, collision groups, affected accounts and presence of a global non-sparse unique `phone` index. Grouping stays in MongoDB; no actual phone numbers, identities or connection details appear in output. Mongoose automatic index creation is disabled during audit.
 - `test/legacyPhoneCollision.test.js`, `test/legacyPhoneAudit.test.js` and adjusted legacy credential/login tests verify ambiguous identity blocking, no provider calls, bounded queries, audit aggregates and index detection. GitHub Actions completed successfully for code SHA `b7630a1f7add4a1b3af39b1aa3b9dd8e175030ec` in run `38942642798`.
 - **Limit:** this fail-closed lookup does not prevent two concurrent new registrations from creating duplicate phone records because the existing schema has no unique phone index. Do **not** add the index before authorized database audit, verified backup, individually reviewed duplicate ownership and controlled deployment. Canonical Auth transition remains PR #1.
+
+## Canonical legacy phone audit accuracy (2026-10-29)
+- Read-only `npm run audit:phones` now canonicalizes a bounded set of historical formats inside MongoDB 4.4+ (`$replaceAll`, `$regexMatch`), including Canadian/US 10-digit values, explicit +1 numbers, and legacy bare +234 numbers. The aggregation groups **canonical** identities rather than raw string spellings, avoiding a false collision-free report for `514…` versus `+1514…` forms. Invalid/missing records are counted separately and always block a healthy finding.
+- The aggregation exports only counters, never raw or canonical phone numbers. Its safeguards and unit test fixtures check invalid number counts, duplicate groups, and sparse/partial/compound/non-simple-collation index rejection. Code/tests SHA `617fa720f892b24e13e7d1b2df4a05bb98aa9fb3` passed [CI 40946001438](https://github.com/takatakca/takatakbackend/actions/runs/40946001438).
+- No real MongoDB audit or index change was run. A successful code check does not establish the actual live MongoDB version, the absence of duplicates, ownership of historical +234 values, live provider keys or deployment.
 
 ## Not complete
 - **Critical**: previously committed `keys/private.pem` in a public repository. Issue #2: https://github.com/takatakca/takatakbackend/issues/2. Rotation requires coordinated deployment/consumer migration.
