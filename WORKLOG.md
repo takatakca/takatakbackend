@@ -3,7 +3,7 @@
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
-- 2026-10-29 | ChatGPT | main | active | Correct read-only phone collision audit for equivalent E.164 formats and invalid historic values; synchronize GitHub handoff and new dedicated Drive note | add pipeline + tests, check exact-SHA CI, document live DB verification gate and deployment blockers
+- 2026-10-29 | ChatGPT | main | done (live MongoDB and production authorization outstanding) | Canonical MongoDB-only phone audit now detects E.164-equivalent collisions and invalid phones without exposing values; tests CI 40946001438 successful; synchronized README + five docs and created dedicated Google Drive handoff | verify final exact-SHA CI, live MongoDB 4.4+ read-only audit, coordinate JWT rotation issue #2, Auth PR #1 and confirmed backend host
 
 - 2026-10-16 | ChatGPT | main | done (live data audit and index migration blocked) | SMS login/resend/verification reject duplicate-number accounts (409) before Twilio; privacy-preserving read-only audit:phones detects collisions and full unique index, new tests and CI run 38942642798 success | verify final main SHA CI; run audit on confirmed authorized MongoDB, review phone ownership/backup before unique index; verify host and RSA rotation #2/central Auth PR #1
 
