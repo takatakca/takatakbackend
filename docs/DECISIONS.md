@@ -1,5 +1,5 @@
 # Architecture and release decisions — TAKATAK backend
-_Last updated: 2026-10-14._
+_Last updated: 2026-10-29._
 
 | ID | Decision | Why / consequence |
 | --- | --- | --- |
@@ -53,6 +53,8 @@ _Last updated: 2026-10-14._
 
 | D-038 | Resolve SMS OTP account lookup by requesting at most two exact normalized phone matches and reject multiple matches (HTTP 409). | Twilio proves control of a phone, not ownership of any particular account when a phone is shared; arbitrary `findOne` can grant the wrong legacy identity. |
 | D-039 | Add a read-only aggregate collision/index audit before enforcing a unique phone index in legacy MongoDB. | Existing phone records might have duplicates or erroneous historic country codes; a premature index creation could fail or disrupt production, so require ownership review, backup and approved migration first. |
+
+| D-040 | Canonicalize historical phone values within the MongoDB read-only aggregate before counting duplicates; reject readiness on any invalid/missing phone. | Raw-string uniqueness can mask the same user's 10-digit and E.164 forms. The aggregation must not export PII; MongoDB 4.4+ compatibility and real data audit remain external gates. |
 
 ## Open decisions requiring live evidence
 - Which backend host/service/environment should deploy `main`?
