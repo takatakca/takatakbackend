@@ -86,6 +86,10 @@ The authenticated `GET /user/upmindClientId` route issues a short-lived client a
 
 `Users.phone` is not guaranteed unique in the current schema. Phone SMS login/resend/verification now use a bounded two-record lookup after E.164 normalization, and fail closed with HTTP 409 when the number matches multiple users; they never select the first arbitrary account for Twilio verification. `npm run audit:phones` performs only a read-only MongoDB aggregate collision count plus index inspection, emitting no numbers or customer records. During release preparation, run this only against the explicitly confirmed and authorized legacy database. A full unique `phone` index must **not** be enabled until real duplicate ownership has been investigated, backups verified and the legacy/canonical Auth migration coordinated. Without the index, simultaneous registrations may still create duplicates, so this is a mitigation rather than proof of global uniqueness.
 
+## Legacy phone audit: canonical collisions and invalid values (2026-10-29)
+
+The collision audit now checks equivalent phone spellings under conservative MongoDB 4.4+ expressions (`$replaceAll`, `$regexMatch`) rather than grouping raw phone strings. It counts unsupported, malformed, non-string and missing phone values separately as `invalidPhoneAccounts`, always failing readiness if any exist. The output does not contain personal numbers or emails. A full unique raw `phone` index does not alone prove normalized identity safety without a clean canonical collision report. Before a migration, verify the actual MongoDB version, gather authorized backup/ownership evidence, review collisions and historical +234 records individually, and do not let the application automatically modify indexes.
+
 ## Known legacy debt
 
 - Existing register/login/OTP routes remain until PR #1 is intentionally merged.
