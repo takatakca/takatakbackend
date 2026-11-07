@@ -1,4 +1,15 @@
 # Project status — TAKATAK legacy backend
+
+## Current checkpoint — 2026-11-07 (source integration; production unverified)
+
+PR #1 is reconciled with current main behind the startup flag `TAKATAK_LEGACY_AUTH_RETIRED`. Only exact `true` enables retirement; absent/empty/`false`/`TRUE`/`1` preserve the current handlers. No production flag was set. Four public POST entry routes return uncached 410 when enabled; `/user/upmindClientId` returns 410 only after the existing JWT/session/user middleware. JWKS, refresh, logout and dashboard remain unchanged.
+
+Local Node 22.23.4: **95/95 tests passed**, including 8 new HTTP cases proving default compatibility, explicit retirement without provider calls, active/revoked session checks and JWKS availability. Final remote exact-SHA CI remains a release condition; see the integration PR receipt.
+
+No matching legacy backend/frontend application was found in the inspected Coolify VPS1/VPS2 application records. The legacy frontend references `https://takatak.onrender.com`; public health/version probes timed out. This does not prove a deploy or a deleted service. Render workspace selection, actual runtime SHA, issue #2 key rotation, MongoDB audits and real-provider cutover remain blocked. The newer V1 app at takatak.ca/tktk.ca is a separate release and must not be overwritten by the old frontend.
+
+Signature: Codex — ChatGPT Work.
+
 _Last verified: 2026-10-29 (GitHub code and CI only; not a production release)_
 
 ## Repository and authority

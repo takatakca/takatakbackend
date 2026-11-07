@@ -8,11 +8,12 @@ Agents and maintainers should read [AGENTS.md](AGENTS.md) and [WORKLOG.md](WORKL
 
 ## Current API
 
-- `POST /auth/register`, `/auth/login`, `/auth/verify-otp`, `/auth/resend-code`: legacy endpoints, awaiting retirement in [PR #1](https://github.com/takatakca/takatakbackend/pull/1). Their continued availability is not approval for new consumers.
+- `POST /auth/register`, `/auth/login`, `/auth/verify-otp`, `/auth/resend-code`: legacy endpoints retained by default. PR #1 retirement is reconciled behind exact startup opt-in `TAKATAK_LEGACY_AUTH_RETIRED=true`, returning HTTP 410 with `Cache-Control: no-store`. Do not activate before verified consumer migration; continued availability is not approval for new consumers.
 - `POST /auth/refresh`: rotates a valid refresh token independently of an expired access token. Accepts HttpOnly `sid` and `refresh_token` cookies or the same JSON fields for API clients.
 - `POST /auth/logout`: requires Bearer JWT; deletes only the verified token's session.
 - `GET /auth/well-known/jwks.json`: exposes a public verification key (not a private signing key).
 - Legacy phone inputs now normalize to E.164; ten-digit Canadian/US numbers default to `+1`. Existing wrongly prefixed records need audited migration.
+- `GET /user/upmindClientId`: retains JWT/session/user checks; the same opt-in retires new Upmind session exchange with HTTP 410.
 - `GET /user/dashboard`: legacy authenticated user dashboard. Billing collections are loaded through complete paginated Upmind lists; summary counts are `null` when an account is unlinked or Upmind data is incomplete/unavailable, never a fabricated zero.
 - `GET /health/live`: process liveness (200 without database check).
 - `GET /health/ready`: readiness (200 with MongoDB connected; otherwise 503).
@@ -29,6 +30,7 @@ Required runtime configuration depends on the enabled legacy integrations. In pa
 
 | Name | Purpose |
 | --- | --- |
+| `TAKATAK_LEGACY_AUTH_RETIRED` | Exact `true` enables retirement after migration; unset/false retains current routes. Read once at startup; activation requires restart and the deployment runbook. |
 | `PORT` | HTTP port (default 3000) |
 | `NODE_ENV` | Set to `production` for secure refresh cookies |
 | `MONGO_URI` | MongoDB connection string |

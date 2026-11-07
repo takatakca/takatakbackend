@@ -1,11 +1,11 @@
 # Task queue — TAKATAK backend
-_Last review: 2026-10-29. Newest authoritative progress is in WORKLOG.md._
+_Last review: 2026-11-07. Newest authoritative progress is in WORKLOG.md._
 
 | ID | Priority | Status | Work | Definition of done |
 | --- | --- | --- | --- | --- |
 | TK-BE-001 | P0 | blocked: external coordination | Rotate compromised RSA signing key (issue #2) | New secret not in Git; all verifiers migrated; old key rejected; verified token/logout/JWKS behavior |
 | TK-BE-002 | P0 | blocked: production selection | Identify the actual production hosting service, settings and URL; verify deployed SHA | Service+branch verified, runtime config inspected without exposing secrets, deployment/health logs clean |
-| TK-BE-003 | P0 | review pending | Retire MongoDB auth endpoints (PR #1) after canonical TAKATAK Auth migration | Consumers migrated; owner confirms cutover; CI and production auth smoke checks pass |
+| TK-BE-003 | P0 | default-OFF source gate tested; activation blocked | Reconcile PR #1 without shutting down legacy consumers; retire only with exact startup flag after migration | Exact candidate/main CI green; confirmed host and consumers migrated; coordinated key rotation; owner-authorized cutover and live auth smoke checks; signed release receipt |
 | TK-BE-004 | P1 | audit script complete; production access blocked | Inspect and migrate legacy sessions TTL index with read-only `npm run audit:sessions` | `expiresAt_1` TTL present; obsolete 7-day `createdAt_1` TTL removed on correct DB after backup and verified migration |
 | TK-BE-005 | P1 | completed for legacy scope | Harden DB-backed JWT session and dashboard; test key ID against JWKS | Prior CI green; real multi-tenant integration and production migration tracked separately |
 | TK-BE-006 | P1 | pagination/id validation coded; live provider evidence pending | Verify Upmind client association belongs to correct brand/tenant | Complete limit/offset search with consistent total and valid IDs tested; real API contract and cross-worker provisioning reviewed; no duplicate/cross-brand leaks |
@@ -28,3 +28,9 @@ _Last review: 2026-10-29. Newest authoritative progress is in WORKLOG.md._
 
 ## Work rules
 Choose the highest-priority task that can be completed safely with current access. Document blocked work, continue unrelated tasks, preserve active PRs. Do not deploy or rotate credentials into an unconfirmed environment. Production criteria: functionality, access checks, CI, deployed SHA and runtime health; no fabricated "100%" claim.
+
+## 2026-11-07 continuation
+
+Local Node 22: 95/95 tests passed. Complete exact-SHA remote CI/merge receipt first. Production activation stays blocked; no app/source merge is proof that consumers migrated. Signed BEFORE/DURING/AFTER notes belong in GitHub and the authorized Drive ledger.
+
+Signature: Codex — ChatGPT Work.

@@ -1,11 +1,11 @@
 # Architecture and release decisions — TAKATAK backend
-_Last updated: 2026-10-29._
+_Last updated: 2026-11-07._
 
 | ID | Decision | Why / consequence |
 | --- | --- | --- |
 | D-001 | Preserve existing `takatakbackend` Express + MongoDB code; no fresh rewrite. | Reuse functional legacy endpoints during migration. |
 | D-002 | Canonical TAKATAK Auth remains sole cross-product identity owner. | This repository cannot invent a second master CRM or grant AHMV/other product entitlement automatically. |
-| D-003 | Do not auto-merge PR #1 before identity migration is verified. | Retirement turns legacy login/register/OTP endpoints into HTTP 410, a potentially breaking production change. |
+| D-003 | Do not activate unconditional auth retirement before verified identity migration. PR #1 may be source-integrated only behind an explicit default-OFF startup gate. | Refined 2026-11-07 under the owner's sequential merge request: source integration preserves current login handlers; only exact `TAKATAK_LEGACY_AUTH_RETIRED=true` enables uncached 410. Host, consumer migration and key rotation remain activation gates. |
 | D-004 | A JWT signature alone is not authorization while its old private key is public. | Require matching, unrevoked, unexpired MongoDB session and verified user; role comes from database. Still rotate key (#2). |
 | D-005 | Access token expiry does not gate refresh. | Refresh requires valid session ID + opaque refresh token; rotate atomically; logout requires valid bearer access token. |
 | D-006 | Use SHA-256 digests for new opaque refresh tokens, with bcrypt fallback for existing records. | Keep migration compatibility, prevent storing bearer refresh secrets in plaintext. |
@@ -61,3 +61,9 @@ _Last updated: 2026-10-29._
 - Which authenticated product consumes each legacy route, and when can login be retired?
 - Which JWT consumers verify the exposed key, and which migration downtime window is acceptable?
 - Which official TAKATAK Auth API and tenant/entitlement contracts should this service trust?
+
+## 2026-11-07 decision evidence
+
+The legacy frontend still references the old Render API; no current backend runtime SHA was verified. Actual Express HTTP tests preserve original handlers for unset/non-exact flags and require JWT/session authorization before the Upmind retirement response. No provider or data migration is implied.
+
+Signature: Codex — ChatGPT Work.

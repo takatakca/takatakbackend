@@ -1,5 +1,17 @@
 # Agent handoff — TAKATAK backend
 
+## Current handoff — 2026-11-07: gated reconciliation of PR #1
+
+- **Last completed:** reviewed current main `411a86146c17ca6ad3f288a5117a40766d2e3e43` (CI 40946397883 success), original PR #1 `479b14d78ba2564b8480620c8a5e6a500c5221ac`, current handler/session boundaries, legacy frontend consumers and host records. Preserved PR #1 ancestry and made retirement explicit/default-OFF.
+- **Claim / preceding pushed SHA:** `64469496c48fec5ac77f3e7780478a40bde9e422` on `codex/legacy-auth-gate-20261107`; signed BEFORE and DURING notes on PR #1. Obtain the final integration/main SHA from GitHub after merge, not from this self-updating file.
+- **Changed paths:** `routes/handler.js`, `test/legacyRetirementRoutes.test.js`, `README.md`, `WORKLOG.md`, and all five continuity documents. No dependency, CI workflow, keys, data or production configuration changed.
+- **Verification:** `npm ci`; `npm exec --yes --package=node@22 -- npm test` = 95/95 passed (8 new actual Express HTTP cases; DB/providers stubbed, ephemeral RSA test key generated in memory). Syntax and tracked-secret checks must pass; the existing known-key warning is not a rotation. Require exact candidate/main SHA GitHub CI before calling source release verified.
+- **Deployment:** NOT PERFORMED / NOT VERIFIED for this legacy backend. Coolify VPS1 and VPS2 have no application linked to this exact legacy repo; old frontend has seven references to `https://takatak.onrender.com`, whose public `/health/live`, `/health/ready`, `/health/version` probes timed out. Do not infer a runtime SHA. Render tool requires a confirmed workspace selection. Do not replace the newer live V1 with legacy `takatak` frontend.
+- **Decision:** prior restrictions against a breaking PR #1 merge are preserved at activation: the integrated code leaves existing handlers active until exact startup opt-in. D-003 is refined accordingly. The original unconditional retirement branch must not be deployed directly.
+- **Next action:** verify candidate/main CI and record exact receipt on GitHub and the authorized Drive ledger. Identify confirmed legacy service/workspace and consumer inventory; coordinate issue #2 signing-key rotation, live MongoDB audits and real canonical-Auth login/refresh/logout/Upmind acceptance before any activation. Keep the flag unset/false until all gates pass. No secrets in notes.
+
+Signature: Codex — ChatGPT Work.
+
 ## 2026-10-29 — current verified continuation and dedicated Google Drive handoff
 
 - **Repo/branch at start:** `takatakca/takatakbackend` on `main`, SHA `0805419af63e31e0abcce379aef87f0e2150bf55`, matching successful `Backend CI` run [38943226128](https://github.com/takatakca/takatakbackend/actions/runs/38943226128). Available branches: `main` and `cursor/tk-043-retire-mongo-login`; open [PR #1](https://github.com/takatakca/takatakbackend/pull/1) remains unmerged, open [issue #2](https://github.com/takatakca/takatakbackend/issues/2) remains unresolved. Read `AGENTS.md`, WORKLOG, five documentation files and source/workflow before coding. No other active task in the log was identified.
