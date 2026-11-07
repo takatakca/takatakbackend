@@ -1,6 +1,6 @@
 # Work log
 
-- 2026-11-07 | Codex — ChatGPT Work | codex/legacy-auth-gate-20261107 → PR #1 reconciliation | active | Preserve retirement ancestry behind explicit default-OFF startup gate; reserve router, HTTP regression tests and release docs; no runtime/keys/DB/provider mutation | next: exact Node22 tests/CI, reviewed source merge, keep production activation blocked until host/consumer migration and issue #2 are verified
+- 2026-11-07 | Codex — ChatGPT Work | codex/legacy-auth-gate-20261107 → PR #1 reconciliation | source complete; integration PR/CI pending | Reconcile PR #1 ancestry behind exact default-OFF startup gate; 95/95 Node22 tests passed, including 8 HTTP regression cases; no runtime/keys/DB/provider mutation | next: verify exact candidate/main CI and publish signed release receipt; keep activation blocked until host/consumer migration and issue #2 are verified
 
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
@@ -36,4 +36,5 @@ Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 - 2026-10-14 | ChatGPT | main | done (CI pending) | Enforced DB-backed verified JWT sessions; repaired session/user model, linked Upmind identity with exact brand and null-on-outage totals; deferred OTP provider initialization; added tests and 5 handoff docs; improved CI concurrency | check latest main CI; production workspace/host, key rotation #2, auth PR #1 and MongoDB TTL migration remain blocked
 
 - 2026-10-14 | ChatGPT | main | done | Fixed refresh hashing/rotation, logout session binding, secure API key checks, exact Upmind matching, DB lifecycle, CORS/health, tests/CI and runbooks | deploy after Render workspace confirmation; rotate leaked signing key (#2), migrate TTL index, review auth retirement PR #1
+- 2026-10-11 | cursor | cursor/tk-043-retire-mongo-login → #1 | PR | Retire register, login, OTP, and new Upmind sessions on the MongoDB backend | wait for review; legacy service stays active until this branch is deployed; no accounts deleted
 - 2026-10-08 | claude (owner setup) | default branch | done | Added the work log rule, this log and the stop reminder | every agent follows AGENTS.md › Work log rule

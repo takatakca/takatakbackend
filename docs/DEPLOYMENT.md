@@ -1,4 +1,15 @@
 # Backend deployment — controlled release guide
+
+## 2026-11-07 source reconciliation: retirement activation is separate
+
+The source integration of PR #1 does **not** retire live login by itself. `TAKATAK_LEGACY_AUTH_RETIRED=true` is an exact startup opt-in; leave it unset or `false` while consumers migrate. No value was installed in production by this session. A process restart/redeploy is required after an approved flag change. The old unconditional PR branch is not a release target.
+
+Before activation: confirm the exact backend service/branch and current deployed revision, inventory every consumer (the old `takatak` frontend still points to `https://takatak.onrender.com`), validate canonical identity and account migration with authorized test users, coordinate compromised-key rotation (#2), and retain the currently running revision/configuration for rollback. Then require 410/no-store on four entry POSTs, 401 for anonymous Upmind exchange, 410 for valid-session Upmind exchange, and working existing refresh/logout/JWKS/dashboard contracts. No customer records are deleted by this flag. Reverting the flag and restarting restores the existing entry routes, but does not reverse external identity or key migrations; coordinate those separately.
+
+Actual discovery: no exact repo-linked legacy application in inspected Coolify VPS1/VPS2; three public Render health/version GETs timed out. Runtime SHA and a verified rollback target remain unknown. No deployment, key rotation, database migration or provider action was performed.
+
+Signature: Codex — ChatGPT Work.
+
 _Status: NOT verified as deployed; do not equate GitHub push/CI with production._
 
 ## Discover real destination first
