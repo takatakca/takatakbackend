@@ -1,5 +1,7 @@
 # Work log
 
+- 2026-11-07 | Codex — ChatGPT Work | codex/legacy-auth-gate-20261107 → PR #1 reconciliation | active | Preserve retirement ancestry behind explicit default-OFF startup gate; reserve router, HTTP regression tests and release docs; no runtime/keys/DB/provider mutation | next: exact Node22 tests/CI, reviewed source merge, keep production activation blocked until host/consumer migration and issue #2 are verified
+
 Newest first, one line per piece of work. Rule: `AGENTS.md` › Work log rule.
 Format: `YYYY-MM-DD | agent | branch → PR | status | what | next step`
 
